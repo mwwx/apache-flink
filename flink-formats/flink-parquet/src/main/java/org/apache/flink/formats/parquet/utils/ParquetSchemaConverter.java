@@ -46,7 +46,7 @@ import java.util.List;
  * Schema converter converts Parquet schema to and from Flink internal types.
  */
 public class ParquetSchemaConverter {
-	private static final Logger LOGGER = LoggerFactory.getLogger(ParquetSchemaConverter.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(RowConverter.class);
 	public static final String MAP_VALUE = "value";
 	public static final String LIST_ARRAY_TYPE = "array";
 	public static final String LIST_ELEMENT = "element";
@@ -74,7 +74,7 @@ public class ParquetSchemaConverter {
 		return (MessageType) convertField(null, typeInformation, Type.Repetition.OPTIONAL, legacyMode);
 	}
 
-	public static TypeInformation<?> convertFields(List<Type> parquetFields) {
+	private static TypeInformation<?> convertFields(List<Type> parquetFields) {
 		List<TypeInformation<?>> types = new ArrayList<>();
 		List<String> names = new ArrayList<>();
 		for (Type field : parquetFields) {
@@ -149,6 +149,9 @@ public class ParquetSchemaConverter {
 							case INT_32:
 								typeInfo = BasicTypeInfo.INT_TYPE_INFO;
 								break;
+							case DECIMAL:
+								typeInfo = BasicTypeInfo.BIG_DEC_TYPE_INFO;
+								break;
 							default:
 								throw new UnsupportedOperationException("Unsupported original type : "
 									+ originalType.name() + " for primitive type INT32");
@@ -168,8 +171,10 @@ public class ParquetSchemaConverter {
 								typeInfo = SqlTimeTypeInfo.TIMESTAMP;
 								break;
 							case INT_64:
-							case DECIMAL:
 								typeInfo = BasicTypeInfo.LONG_TYPE_INFO;
+								break;
+							case DECIMAL:
+								typeInfo = BasicTypeInfo.BIG_DEC_TYPE_INFO;
 								break;
 							default:
 								throw new UnsupportedOperationException("Unsupported original type : "
@@ -310,7 +315,13 @@ public class ParquetSchemaConverter {
 		// Backward-compatibility element group doesn't exist also allowed
 		TypeInformation<?> flinkType = convertParquetTypeToTypeInfo(type);
 		if (flinkType.isBasicType()) {
-			return BasicArrayTypeInfo.getInfoFor(Array.newInstance(flinkType.getTypeClass(), 0).getClass());
+			TypeInformation<?> typeInformation = BasicArrayTypeInfo.getInfoFor(
+				Array.newInstance(flinkType.getTypeClass(), 0).getClass());
+			if (typeInformation == null) {
+				typeInformation =  ObjectArrayTypeInfo.getInfoFor(flinkType);
+			}
+
+			return  typeInformation;
 		} else {
 			// flinkType here can be either SqlTimeTypeInfo or BasicTypeInfo.BIG_DEC_TYPE_INFO,
 			// So it should be converted to ObjectArrayTypeInfo
