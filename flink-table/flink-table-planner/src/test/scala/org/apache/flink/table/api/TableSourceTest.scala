@@ -25,11 +25,11 @@ import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, Schema}
 import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.runtime.utils.CommonTestData
+import org.apache.flink.table.sources.lookup.LookupOptions
 import org.apache.flink.table.sources.{CsvTableSource, TableSource}
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{TableTestBase, TestFilterableTableSource}
 import org.apache.flink.types.Row
-
 import org.junit.{Assert, Test}
 
 import java.sql.{Date, Time, Timestamp}
@@ -423,6 +423,7 @@ class TableSourceTest extends TableTestBase {
       .commentPrefix("%%")
       .ignoreFirstLine()
       .ignoreParseErrors()
+      .lookupOptions(LookupOptions.builder().build())
       .build()
 
     val source2 = new CsvTableSource(
@@ -434,7 +435,8 @@ class TableSourceTest extends TableTestBase {
       ';',
       true,
       "%%",
-      true)
+      true,
+      LookupOptions.builder().build())
 
     Assert.assertEquals(source1, source2)
   }

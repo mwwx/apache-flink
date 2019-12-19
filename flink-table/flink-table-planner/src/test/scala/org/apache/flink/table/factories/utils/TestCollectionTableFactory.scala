@@ -38,10 +38,12 @@ import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.table.sinks.{AppendStreamTableSink, BatchTableSink, StreamTableSink, TableSink}
 import org.apache.flink.table.sources.{BatchTableSource, LookupableTableSource, StreamTableSource, TableSource}
 import org.apache.flink.types.Row
-
 import java.io.IOException
 import java.util
 import java.util.{ArrayList => JArrayList, LinkedList => JLinkedList, List => JList, Map => JMap}
+
+import org.apache.flink.table.sources.lookup.LookupOptions
+import org.apache.flink.table.sources.lookup.cache.CacheStrategy
 
 import scala.collection.JavaConversions._
 
@@ -169,6 +171,10 @@ object TestCollectionTableFactory {
     override def getAsyncLookupFunction(lookupKeys: Array[String]): AsyncTableFunction[Row] = null
 
     override def isAsyncEnabled: Boolean = false
+
+    override def supportedCacheStrategies(): Array[CacheStrategy] = Array(CacheStrategy.ALL)
+
+    override def getLookupOptions: LookupOptions = null
   }
 
   /**

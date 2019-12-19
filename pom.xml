@@ -49,6 +49,34 @@ under the License.
 		<developerConnection>scm:git:https://gitbox.apache.org/repos/asf/flink.git</developerConnection>
 	</scm>
 
+	<repositories>
+		<repository>
+			<id>alimaven</id>
+			<name>aliyun maven</name>
+			<url>https://maven.aliyun.com/nexus/content/groups/public/</url>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</repository>
+		<repository>
+			<id>central-repos</id>
+			<name>Central Repository</name>
+			<url>https://repo.maven.apache.org/maven2</url>
+		</repository>
+		<repository>
+			<id>central-repos1</id>
+			<name>Central Repository 2</name>
+			<url>https://repo1.maven.org/maven2/</url>
+		</repository>
+		<repository>
+			<id>datapps</id>
+			<url>http://192.168.1.79:8081/artifactory/datapps</url>
+		</repository>
+	</repositories>
+
 	<modules>
 		<!-- Dummy module to force execution of the Maven Shade plugin (see Shade plugin below) -->
 		<module>tools/force-shading</module>
@@ -157,6 +185,9 @@ under the License.
 		<hivemetastore.hadoop.version>2.7.5</hivemetastore.hadoop.version>
 		<japicmp.referenceVersion>1.11.1</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
+		<test.scheduler.type></test.scheduler.type>
+		<test.groups></test.groups>
+		<linkoopdb.version>3.0.0</linkoopdb.version>
 	</properties>
 
 	<dependencies>

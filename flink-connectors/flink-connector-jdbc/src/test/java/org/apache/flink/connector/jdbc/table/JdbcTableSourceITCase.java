@@ -109,6 +109,7 @@ public class JdbcTableSourceITCase extends AbstractTestBase {
 				") WITH (" +
 				"  'connector.type'='jdbc'," +
 				"  'connector.url'='" + DB_URL + "'," +
+				"  'connector.driver'='" + DRIVER_CLASS + "'," +
 				"  'connector.table'='" + INPUT_TABLE + "'" +
 				")"
 		);
@@ -144,6 +145,7 @@ public class JdbcTableSourceITCase extends AbstractTestBase {
 				") WITH (" +
 				"  'connector.type'='jdbc'," +
 				"  'connector.url'='" + DB_URL + "'," +
+				"  'connector.driver'='" + DRIVER_CLASS + "'," +
 				"  'connector.table'='" + INPUT_TABLE + "'" +
 				")"
 		);
@@ -175,6 +177,7 @@ public class JdbcTableSourceITCase extends AbstractTestBase {
 						") WITH (" +
 						"  'connector.type'='jdbc'," +
 						"  'connector.url'='" + DB_URL + "'," +
+						"  'connector.driver'='" + DRIVER_CLASS + "'," +
 						"  'connector.table'='whatever'," +
 						"  'connector.read.query'='" + testQuery + "'" +
 						")"

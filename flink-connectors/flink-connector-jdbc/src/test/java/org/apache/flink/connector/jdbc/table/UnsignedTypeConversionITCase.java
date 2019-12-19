@@ -42,6 +42,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -76,6 +77,9 @@ public class UnsignedTypeConversionITCase extends AbstractTestBase {
 		//dbUrl: jdbc:mysql://localhost:3306/test
 		dbUrl = db4jRule.getURL();
 		connection = DriverManager.getConnection(dbUrl);
+		Statement statement = connection.createStatement();
+		statement.execute("set global time_zone='+8:00'");
+		statement.close();
 		createMysqlTable();
 		createFlinkTable();
 		prepareData();

@@ -59,6 +59,8 @@ import org.apache.flink.table.sources.PartitionableTableSource;
 import org.apache.flink.table.sources.ProjectableTableSource;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.sources.lookup.LookupOptions;
+import org.apache.flink.table.sources.lookup.cache.CacheStrategy;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.utils.TableConnectorUtils;
@@ -555,5 +557,15 @@ public class HiveTableSource implements
 	@Override
 	public boolean isAsyncEnabled() {
 		return false;
+	}
+
+	@Override
+	public CacheStrategy[] supportedCacheStrategies() {
+		return new CacheStrategy[] {CacheStrategy.NONE};
+	}
+
+	@Override
+	public LookupOptions getLookupOptions() {
+		return null;
 	}
 }

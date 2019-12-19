@@ -5,7 +5,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FileSystemValidator;
-import org.apache.flink.table.descriptors.LookupOptionsValidator;
+import org.apache.flink.table.descriptors.LookupValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.descriptors.StreamTableDescriptorValidator;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
@@ -25,19 +25,19 @@ import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CO
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_TYPE;
-import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_TIMESTAMPS_CLASS;
-import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_TIMESTAMPS_FROM;
-import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_TIMESTAMPS_SERIALIZED;
-import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_TIMESTAMPS_TYPE;
-import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERMARKS_CLASS;
-import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERMARKS_DELAY;
-import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERMARKS_SERIALIZED;
-import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERMARKS_TYPE;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_FROM;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_NAME;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_PROCTIME;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_CLASS;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_FROM;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_SERIALIZED;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_TYPE;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_CLASS;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_DELAY;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_SERIALIZED;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_TYPE;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA_FROM;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA_NAME;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA_PROCTIME;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA_TYPE;
 
 /**
  * ParquetTableSource Factory.
@@ -47,9 +47,9 @@ public class ParquetTableSourceFactory implements StreamTableSourceFactory<Row> 
 	@Override
 	public StreamTableSource<Row> createStreamTableSource(Map<String, String> properties) {
 		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
-		TableSchema tableSchema = descriptorProperties.getTableSchema(SCHEMA());
+		TableSchema tableSchema = descriptorProperties.getTableSchema(SCHEMA);
 
-		long fieldCount = properties.keySet().stream().filter(k -> k.startsWith(SCHEMA()) && k.endsWith(".name")).count();
+		long fieldCount = properties.keySet().stream().filter(k -> k.startsWith(SCHEMA) && k.endsWith(".name")).count();
 
 		String proctimeAttr = SchemaValidator.deriveProctimeAttribute(descriptorProperties).orElse(null);
 		if (!StringUtils.isNullOrWhitespaceOnly(proctimeAttr)) {
@@ -59,16 +59,16 @@ public class ParquetTableSourceFactory implements StreamTableSourceFactory<Row> 
 		TableSchema.Builder schemaBuilder = TableSchema.builder();
 		for (int i = 0; i < fieldCount; i++) {
 			String name = String.format("origin.%d", i);
-			String type = String.format("%s.%d.type", SCHEMA(), i);
+			String type = String.format("%s.%d.type", SCHEMA, i);
 
 			String pName = properties.get(name);
 			if (pName == null) {
-				throw new ValidationException(String.format("Invalid table schema. Could not find name for field '%s.%d'.", SCHEMA(), i));
+				throw new ValidationException(String.format("Invalid table schema. Could not find name for field '%s.%d'.", SCHEMA, i));
 			}
 
 			String pType = properties.get(type);
 			if (pType == null) {
-				throw new ValidationException(String.format("Invalid table schema. Could not find type for field '%s.%d'.", SCHEMA(), i));
+				throw new ValidationException(String.format("Invalid table schema. Could not find type for field '%s.%d'.", SCHEMA, i));
 			}
 
 			schemaBuilder.field(pName, TypeStringUtils.readTypeInfo(pType));
@@ -77,7 +77,7 @@ public class ParquetTableSourceFactory implements StreamTableSourceFactory<Row> 
 		TableSchema originTableSchema = schemaBuilder.build();
 
 		ParquetTableSourceBuilder builder = new ParquetTableSourceBuilder();
-		builder.path(descriptorProperties.getString(FileSystemValidator.CONNECTOR_PATH()))
+		builder.path(descriptorProperties.getString(FileSystemValidator.CONNECTOR_PATH))
 			.fields(tableSchema.getFieldNames(), tableSchema.getFieldTypes())
 			.proctimeAttribute(SchemaValidator.deriveProctimeAttribute(descriptorProperties)
 				.orElse(null))
@@ -99,11 +99,11 @@ public class ParquetTableSourceFactory implements StreamTableSourceFactory<Row> 
 	@Override
 	public Map<String, String> requiredContext() {
 		HashMap<String, String> context = new HashMap<>();
-		context.put(CONNECTOR_TYPE, FileSystemValidator.CONNECTOR_TYPE_VALUE());
+		context.put(CONNECTOR_TYPE, FileSystemValidator.CONNECTOR_TYPE_VALUE);
 		context.put(FORMAT_TYPE, FORMAT_TYPE_VALUE);
 		context.put(CONNECTOR_PROPERTY_VERSION, "1");
 		context.put(FORMAT_PROPERTY_VERSION, "1");
-		context.put(StreamTableDescriptorValidator.UPDATE_MODE(), StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND());
+		context.put(StreamTableDescriptorValidator.UPDATE_MODE, StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND);
 		context.put(CONNECTOR_VERSION, "2");
 		return context;
 	}
@@ -114,31 +114,31 @@ public class ParquetTableSourceFactory implements StreamTableSourceFactory<Row> 
 		List<String> properties = new ArrayList<>();
 
 		// connector
-		properties.add(FileSystemValidator.CONNECTOR_PATH());
+		properties.add(FileSystemValidator.CONNECTOR_PATH);
 
 		properties.add(ParquetSourceValidator.CONNECTOR_DATA_TYPE);
 		properties.add(ParquetSourceValidator.CONNECTOR_CACHE_TYPE);
 
 		//cache support
-		properties.add(LookupOptionsValidator.LOOKUP_CONFIG_CACHE_STRATEGY);
+		properties.addAll(LookupValidator.getProperties());
 
 		// schema
-		properties.add(SCHEMA() + ".#." + SCHEMA_TYPE());
-		properties.add(SCHEMA() + ".#." + SCHEMA_NAME());
-		properties.add(SCHEMA() + ".#." + SCHEMA_FROM());
+		properties.add(SCHEMA + ".#." + SCHEMA_TYPE);
+		properties.add(SCHEMA + ".#." + SCHEMA_NAME);
+		properties.add(SCHEMA + ".#." + SCHEMA_FROM);
 
 		properties.add("origin.#");
 
 		// time attributes
-		properties.add(SCHEMA() + ".#." + SCHEMA_PROCTIME());
-		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_TYPE());
-		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_FROM());
-		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_CLASS());
-		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_SERIALIZED());
-		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_TYPE());
-		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_CLASS());
-		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_SERIALIZED());
-		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_DELAY());
+		properties.add(SCHEMA + ".#." + SCHEMA_PROCTIME);
+		properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_TYPE);
+		properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_FROM);
+		properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_CLASS);
+		properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_SERIALIZED);
+		properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_TYPE);
+		properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_CLASS);
+		properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_SERIALIZED);
+		properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_DELAY);
 
 		return properties;
 	}

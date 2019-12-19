@@ -83,7 +83,8 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
 
 	@Test
 	public void testInvalidURL() {
-		String expectedMsg = "No suitable driver found for jdbc:der:iamanerror:mory:ebookshop";
+		// String expectedMsg = "No suitable driver found for jdbc:der:iamanerror:mory:ebookshop";
+		String expectedMsg = "unable to open JDBC writer";
 		try {
 			jdbcOutputFormat = JdbcOutputFormat.buildJdbcOutputFormat()
 				.setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())

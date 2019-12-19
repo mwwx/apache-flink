@@ -62,7 +62,7 @@ public abstract class ConnectorDescriptor extends DescriptorBase implements Desc
 	/**
 	 * Returns if this connector requires a format descriptor.
 	 */
-	protected final boolean isFormatNeeded() {
+	public final boolean isFormatNeeded() {
 		return formatNeeded;
 	}
 
@@ -71,4 +71,12 @@ public abstract class ConnectorDescriptor extends DescriptorBase implements Desc
 	 * {@link ConnectorDescriptorValidator#CONNECTOR}.
 	 */
 	protected abstract Map<String, String> toConnectorProperties();
+
+	public final String getType() {
+		return type;
+	}
+
+	public final int getVersion() {
+		return version;
+	}
 }

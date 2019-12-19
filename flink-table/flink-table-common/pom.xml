@@ -71,6 +71,12 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils-junit</artifactId>
 		</dependency>
+		<!--用来做缓存 -->
+		<dependency>
+			<groupId>org.mapdb</groupId>
+			<artifactId>mapdb</artifactId>
+			<version>3.0.7</version>
+		</dependency>
 	</dependencies>
 
 	<build>

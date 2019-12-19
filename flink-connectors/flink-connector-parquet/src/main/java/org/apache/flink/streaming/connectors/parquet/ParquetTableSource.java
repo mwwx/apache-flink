@@ -95,7 +95,7 @@ public class ParquetTableSource implements
 
 	@Override
 	public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
-		return ParquetSourceUtil.createInput(execEnv, createInputFormat(), getReturnType()).name(explainSource());
+		return ParquetSourceUtil.createInput(execEnv, createInputFormat(), getReturnType(), path).name(explainSource());
 	}
 
 	/**

@@ -27,7 +27,11 @@ import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.jdbc.internal.connection.JdbcConnectionProvider;
+import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.split.JdbcParameterValuesProvider;
+import org.apache.flink.connector.jdbc.utils.JdbcTypeUtil;
+import org.apache.flink.connector.jdbc.utils.JdbcUtils;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
@@ -105,10 +109,9 @@ public class JdbcInputFormat extends RichInputFormat<Row, InputSplit> implements
 	protected static final long serialVersionUID = 1L;
 	protected static final Logger LOG = LoggerFactory.getLogger(JdbcInputFormat.class);
 
-	protected String username;
-	protected String password;
-	protected String drivername;
-	protected String dbURL;
+	protected final JdbcConnectionOptions jdbcOptions;
+	protected transient JdbcConnectionProvider connectionProvider;
+
 	protected String queryTemplate;
 	protected int resultSetType;
 	protected int resultSetConcurrency;
@@ -124,7 +127,13 @@ public class JdbcInputFormat extends RichInputFormat<Row, InputSplit> implements
 	protected boolean hasNext;
 	protected Object[][] parameterValues;
 
-	public JdbcInputFormat() {
+	protected String increaseColumn;
+	private int increaseColumnIdx = -1;
+	private volatile long currentPos = Long.MIN_VALUE;
+	protected int[] parameterTypes;
+
+	public JdbcInputFormat(JdbcConnectionOptions jdbcOptions) {
+		this.jdbcOptions = jdbcOptions;
 	}
 
 	@Override
@@ -141,12 +150,8 @@ public class JdbcInputFormat extends RichInputFormat<Row, InputSplit> implements
 	public void openInputFormat() {
 		//called once per inputFormat (on open)
 		try {
-			Class.forName(drivername);
-			if (username == null) {
-				dbConn = DriverManager.getConnection(dbURL);
-			} else {
-				dbConn = DriverManager.getConnection(dbURL, username, password);
-			}
+			this.connectionProvider = new SimpleJdbcConnectionProvider(jdbcOptions);
+			dbConn = connectionProvider.getConnection();
 
 			// set autoCommit mode only if it was explicitly configured.
 			// keep connection default otherwise.
@@ -154,14 +159,32 @@ public class JdbcInputFormat extends RichInputFormat<Row, InputSplit> implements
 				dbConn.setAutoCommit(autoCommit);
 			}
 
-			statement = dbConn.prepareStatement(queryTemplate, resultSetType, resultSetConcurrency);
+			if (increaseColumn != null && !increaseColumn.isEmpty()) {
+				increaseColumnIdx = rowTypeInfo.getFieldIndex(increaseColumn);
+				if (increaseColumnIdx == -1) {
+					throw new IllegalArgumentException(
+						String.format("column %s was not a member of schema.", increaseColumn));
+				}
+
+				String query = queryTemplate + String.format(" where %s > ? order by %s", increaseColumn, increaseColumn);
+				statement = dbConn.prepareStatement(query, resultSetType, resultSetConcurrency);
+				statement.setObject(1, currentPos);
+			} else {
+				statement = dbConn.prepareStatement(queryTemplate, resultSetType, resultSetConcurrency);
+			}
+
 			if (fetchSize == Integer.MIN_VALUE || fetchSize > 0) {
 				statement.setFetchSize(fetchSize);
 			}
+
+			LOG.info("JdbcInputFormat openInputFormat at increaseColumn {}, {} successful.", increaseColumn, fetchSize);
 		} catch (SQLException se) {
 			throw new IllegalArgumentException("open() failed." + se.getMessage(), se);
-		} catch (ClassNotFoundException cnfe) {
-			throw new IllegalArgumentException("JDBC-Class not found. - " + cnfe.getMessage(), cnfe);
+		} catch (Exception ex) {
+			if (ex instanceof ClassNotFoundException) {
+				throw new IllegalArgumentException("JDBC-Class not found. - " + ex.getMessage(), ex);
+			}
+			throw new IllegalArgumentException("open() failed." + ex.getMessage(), ex);
 		}
 	}
 
@@ -188,6 +211,10 @@ public class JdbcInputFormat extends RichInputFormat<Row, InputSplit> implements
 			dbConn = null;
 		}
 
+		if (connectionProvider != null) {
+			connectionProvider.releaseConnectionPool();
+			connectionProvider = null;
+		}
 		parameterValues = null;
 	}
 
@@ -292,10 +319,22 @@ public class JdbcInputFormat extends RichInputFormat<Row, InputSplit> implements
 	public Row nextRecord(Row reuse) throws IOException {
 		try {
 			if (!hasNext) {
+				if (increaseColumnIdx != -1) {
+					resultSet.close();
+					statement.setObject(1, currentPos);
+					resultSet = statement.executeQuery();
+					hasNext = resultSet.next();
+				}
 				return null;
 			}
+
 			for (int pos = 0; pos < reuse.getArity(); pos++) {
-				reuse.setField(pos, resultSet.getObject(pos + 1));
+				reuse.setField(pos, JdbcUtils.getFieldFromResultSet(
+					pos, parameterTypes[pos], resultSet, rowTypeInfo.getTypeAt(pos)));
+
+				if (pos == increaseColumnIdx) {
+					currentPos = resultSet.getInt(increaseColumn);
+				}
 			}
 			//update hasNext after we've read the record
 			hasNext = resultSet.next();
@@ -330,13 +369,25 @@ public class JdbcInputFormat extends RichInputFormat<Row, InputSplit> implements
 	}
 
 	@VisibleForTesting
-	protected PreparedStatement getStatement() {
+	public PreparedStatement getStatement() {
 		return statement;
 	}
 
 	@VisibleForTesting
-	protected Connection getDbConn() {
+	public Connection getDbConn() {
 		return dbConn;
+	}
+
+	public String getIncreaseColumn() {
+		return increaseColumn;
+	}
+
+	public void setCurrentPos(long currentPos) {
+		this.currentPos = currentPos;
+	}
+
+	public long getCurrentPos() {
+		return currentPos;
 	}
 
 	/**
@@ -352,94 +403,124 @@ public class JdbcInputFormat extends RichInputFormat<Row, InputSplit> implements
 	 */
 	public static class JdbcInputFormatBuilder {
 
-		private final JdbcInputFormat format;
+		private String username;
+		private String password;
+		private String drivername;
+		private String dbURL;
+		private String queryTemplate;
+		//using TYPE_FORWARD_ONLY for high performance reads
+		private int resultSetType = ResultSet.TYPE_FORWARD_ONLY;
+		private int resultSetConcurrency = ResultSet.CONCUR_READ_ONLY;
+		private Object[][] parameterValues;
+		private RowTypeInfo rowTypeInfo;
+		private int fetchSize;
+		private Boolean autoCommit;
+		private String increaseColumn;
 
 		public JdbcInputFormatBuilder() {
-			this.format = new JdbcInputFormat();
-			//using TYPE_FORWARD_ONLY for high performance reads
-			this.format.resultSetType = ResultSet.TYPE_FORWARD_ONLY;
-			this.format.resultSetConcurrency = ResultSet.CONCUR_READ_ONLY;
 		}
 
 		public JdbcInputFormatBuilder setUsername(String username) {
-			format.username = username;
+			this.username = username;
 			return this;
 		}
 
 		public JdbcInputFormatBuilder setPassword(String password) {
-			format.password = password;
+			this.password = password;
 			return this;
 		}
 
 		public JdbcInputFormatBuilder setDrivername(String drivername) {
-			format.drivername = drivername;
+			this.drivername = drivername;
 			return this;
 		}
 
 		public JdbcInputFormatBuilder setDBUrl(String dbURL) {
-			format.dbURL = dbURL;
+			this.dbURL = dbURL;
 			return this;
 		}
 
 		public JdbcInputFormatBuilder setQuery(String query) {
-			format.queryTemplate = query;
+			this.queryTemplate = query;
 			return this;
 		}
 
 		public JdbcInputFormatBuilder setResultSetType(int resultSetType) {
-			format.resultSetType = resultSetType;
+			this.resultSetType = resultSetType;
 			return this;
 		}
 
 		public JdbcInputFormatBuilder setResultSetConcurrency(int resultSetConcurrency) {
-			format.resultSetConcurrency = resultSetConcurrency;
+			this.resultSetConcurrency = resultSetConcurrency;
 			return this;
 		}
 
 		public JdbcInputFormatBuilder setParametersProvider(JdbcParameterValuesProvider parameterValuesProvider) {
-			format.parameterValues = parameterValuesProvider.getParameterValues();
+			this.parameterValues = parameterValuesProvider.getParameterValues();
 			return this;
 		}
 
 		public JdbcInputFormatBuilder setRowTypeInfo(RowTypeInfo rowTypeInfo) {
-			format.rowTypeInfo = rowTypeInfo;
+			this.rowTypeInfo = rowTypeInfo;
 			return this;
 		}
 
 		public JdbcInputFormatBuilder setFetchSize(int fetchSize) {
-			Preconditions.checkArgument(fetchSize == Integer.MIN_VALUE || fetchSize > 0,
+			Preconditions.checkArgument(fetchSize == Integer.MIN_VALUE || fetchSize >= 0,
 				"Illegal value %s for fetchSize, has to be positive or Integer.MIN_VALUE.", fetchSize);
-			format.fetchSize = fetchSize;
+			this.fetchSize = fetchSize;
 			return this;
 		}
 
 		public JdbcInputFormatBuilder setAutoCommit(Boolean autoCommit) {
-			format.autoCommit = autoCommit;
+			this.autoCommit = autoCommit;
+			return this;
+		}
+
+		public JdbcInputFormatBuilder setIncreaseColumn(String increaseColumn) {
+			this.increaseColumn = increaseColumn;
 			return this;
 		}
 
 		public JdbcInputFormat finish() {
-			if (format.username == null) {
-				LOG.info("Username was not supplied separately.");
-			}
-			if (format.password == null) {
-				LOG.info("Password was not supplied separately.");
-			}
-			if (format.dbURL == null) {
+			if (this.dbURL == null) {
 				throw new IllegalArgumentException("No database URL supplied");
 			}
-			if (format.queryTemplate == null) {
+			if (this.queryTemplate == null) {
 				throw new IllegalArgumentException("No query supplied");
 			}
-			if (format.drivername == null) {
+			if (this.drivername == null) {
 				throw new IllegalArgumentException("No driver supplied");
 			}
-			if (format.rowTypeInfo == null) {
+
+			JdbcConnectionOptions options = new JdbcConnectionOptions
+				.JdbcConnectionOptionsBuilder()
+				.withUrl(this.dbURL)
+				.withDriverName(this.drivername)
+				.withUsername(this.username)
+				.withPassword(this.password)
+				.build();
+
+			if (this.rowTypeInfo == null) {
 				throw new IllegalArgumentException("No " + RowTypeInfo.class.getSimpleName() + " supplied");
 			}
-			if (format.parameterValues == null) {
+			if (this.parameterValues == null) {
 				LOG.debug("No input splitting configured (data will be read with parallelism 1).");
 			}
+
+			final JdbcInputFormat format = new JdbcInputFormat(options);
+			format.queryTemplate = this.queryTemplate;
+			format.resultSetType = this.resultSetType;
+			format.resultSetConcurrency = this.resultSetConcurrency;
+			format.parameterValues = this.parameterValues;
+			format.rowTypeInfo = this.rowTypeInfo;
+			format.fetchSize = this.fetchSize;
+			format.autoCommit = this.autoCommit;
+			format.increaseColumn = this.increaseColumn;
+			// sql types
+			format.parameterTypes = Arrays.stream(format.rowTypeInfo.getFieldTypes())
+				.mapToInt(JdbcTypeUtil::typeInformationToSqlType).toArray();
+
 			return format;
 		}
 

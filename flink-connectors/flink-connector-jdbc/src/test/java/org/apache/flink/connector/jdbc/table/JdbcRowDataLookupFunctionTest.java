@@ -18,11 +18,11 @@
 
 package org.apache.flink.connector.jdbc.table;
 
-import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.sources.lookup.LookupOptions;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -94,7 +94,7 @@ public class JdbcRowDataLookupFunctionTest extends JdbcLookupTestBase {
 			.setTableName(LOOKUP_TABLE)
 			.build();
 
-		JdbcLookupOptions lookupOptions = JdbcLookupOptions.builder().build();
+		LookupOptions lookupOptions = LookupOptions.builder().build();
 
 		RowType rowType = RowType.of(Arrays.stream(fieldDataTypes).
 			map(DataType::getLogicalType).toArray(LogicalType[]::new), fieldNames);

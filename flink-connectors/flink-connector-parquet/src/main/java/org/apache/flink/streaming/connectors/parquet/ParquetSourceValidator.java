@@ -29,7 +29,7 @@ public class ParquetSourceValidator extends FormatDescriptorValidator {
 
 	private void validateParquet(DescriptorProperties properties) {
 		super.validate(properties);
-		properties.validateString(FileSystemValidator.CONNECTOR_PATH(), false, 1, Integer.MAX_VALUE);
+		properties.validateString(FileSystemValidator.CONNECTOR_PATH, false, 1, Integer.MAX_VALUE);
 		properties.validateValue(FORMAT_TYPE, FORMAT_TYPE_VALUE, false);
 		properties.validateString(CONNECTOR_DATA_TYPE, true, 0, Integer.MAX_VALUE);
 		properties.validateString(CONNECTOR_CACHE_TYPE, true, 0, Integer.MAX_VALUE);

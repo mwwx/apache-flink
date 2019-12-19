@@ -26,7 +26,6 @@ import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialects;
 import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcReadOptions;
 import org.apache.flink.table.api.TableSchema;
@@ -35,6 +34,7 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.sources.lookup.LookupOptions;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -176,7 +176,7 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 		return new JdbcDynamicTableSource(
 			getJdbcOptions(helper.getOptions()),
 			getJdbcReadOptions(helper.getOptions()),
-			getJdbcLookupOptions(helper.getOptions()),
+			getLookupOptions(helper.getOptions()),
 			physicalSchema);
 	}
 
@@ -206,11 +206,13 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 		return builder.build();
 	}
 
-	private JdbcLookupOptions getJdbcLookupOptions(ReadableConfig readableConfig) {
-		return new JdbcLookupOptions(
-			readableConfig.get(LOOKUP_CACHE_MAX_ROWS),
-			readableConfig.get(LOOKUP_CACHE_TTL).toMillis(),
-			readableConfig.get(LOOKUP_MAX_RETRIES));
+	private LookupOptions getLookupOptions(ReadableConfig readableConfig) {
+		return LookupOptions
+			.builder()
+			.setCacheSize(readableConfig.get(LOOKUP_CACHE_MAX_ROWS))
+			.setCacheTTLMs(readableConfig.get(LOOKUP_CACHE_TTL).toMillis())
+			.setMaxRetryTimes(readableConfig.get(LOOKUP_MAX_RETRIES))
+			.build();
 	}
 
 	private JdbcExecutionOptions getJdbcExecutionOptions(ReadableConfig config) {

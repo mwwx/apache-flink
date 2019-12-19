@@ -32,7 +32,7 @@ import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.
  * Factory for creating configured instances of {@link CsvTableSource} in a stream environment.
  */
 @PublicEvolving
-public class CsvAppendTableSourceFactory extends CsvTableSourceFactoryBase implements StreamTableSourceFactory<Row> {
+public class CsvTableSourceFactory extends CsvTableSourceFactoryBase implements StreamTableSourceFactory<Row> {
 
 	@Override
 	public Map<String, String> requiredContext() {

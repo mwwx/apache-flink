@@ -26,6 +26,8 @@ import org.apache.flink.table.types.logical.RowType;
 
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -72,12 +74,34 @@ public interface JdbcDialect extends Serializable {
 	}
 
 	/**
+	 * Check if case sensitive.
+	 * @return True if the query is case sensitive.
+	 */
+	boolean isQuoting();
+
+	/**
+	 * set cse sensitive.
+	 * @param quoting case sensitive.
+	 */
+	void setQuoting(boolean quoting);
+
+	/**
 	 * Quotes the identifier. This is used to put quotes around the identifier in case the column
 	 * name is a reserved keyword, or in case it contains characters that require quotes (e.g. space).
 	 * Default using double quotes {@code "} to quote.
 	 */
 	default String quoteIdentifier(String identifier) {
-		return "\"" + identifier + "\"";
+		if (!isQuoting()) {
+			return identifier;
+		}
+
+		int index = identifier.indexOf(".");
+		if (index > -1) {
+			String[] names = identifier.split("\\.");
+			return Arrays.stream(names).map(f -> "\"" + f + "\"").collect(Collectors.joining("."));
+		} else {
+			return "\"" + identifier + "\"";
+		}
 	}
 
 	/**
@@ -137,9 +161,37 @@ public interface JdbcDialect extends Serializable {
 	 * because limit 1 is a sql dialect.
 	 */
 	default String getDeleteStatement(String tableName, String[] conditionFields) {
-		String conditionClause = Arrays.stream(conditionFields)
-			.map(f -> quoteIdentifier(f) + "=?")
-			.collect(Collectors.joining(" AND "));
+		return getDeleteStatement(tableName, conditionFields, Collections.emptyMap());
+	}
+
+	/**
+	 * Get delete one row statement by condition fields and null values, default not use limit 1,
+	 * because limit 1 is a sql dialect.
+	 */
+	default String getDeleteStatement(
+		String tableName,
+		String[] conditionFields,
+		Map<String, Integer> nullFields) {
+		String conditionClause;
+
+		if (nullFields == null || nullFields.isEmpty()) {
+			// does not has null value
+			conditionClause = Arrays.stream(conditionFields)
+				.map(f -> quoteIdentifier(f) + "=?")
+				.collect(Collectors.joining(" AND "));
+		} else {
+			// has null value
+			conditionClause = Arrays.stream(conditionFields)
+				.map(f -> {
+					String equalExpr = "=?";
+					if (nullFields.containsKey(f)) {
+						equalExpr = " IS NULL";
+					}
+					return quoteIdentifier(f) + equalExpr;
+				})
+				.collect(Collectors.joining(" AND "));
+		}
+
 		return "DELETE FROM " + quoteIdentifier(tableName) + " WHERE " + conditionClause;
 	}
 
@@ -155,5 +207,16 @@ public interface JdbcDialect extends Serializable {
 				.collect(Collectors.joining(" AND "));
 		return "SELECT " + selectExpressions + " FROM " +
 				quoteIdentifier(tableName) + (conditionFields.length > 0 ? " WHERE " + fieldExpressions : "");
+	}
+
+	/**
+	 * Get select fields statement. Default use SELECT.
+	 */
+	default String getSelectAllFromStatement(String tableName, String[] selectFields) {
+		String selectExpressions = Arrays.stream(selectFields)
+			.map(this::quoteIdentifier)
+			.collect(Collectors.joining(", "));
+		return "SELECT " + selectExpressions + " FROM " +
+			quoteIdentifier(tableName);
 	}
 }

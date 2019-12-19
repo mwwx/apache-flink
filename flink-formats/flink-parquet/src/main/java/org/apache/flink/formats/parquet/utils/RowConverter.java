@@ -111,7 +111,7 @@ public class RowConverter extends GroupConverter implements ParentDataHolder {
 	}
 
 	private static Converter castToConverter(Class typeClass,
-											 Type repeatedType, ParentDataHolder parentDataHolder, int fieldPos) {
+				Type repeatedType, ParentDataHolder parentDataHolder, int fieldPos) {
 
 		if (typeClass.equals(Character.class)) {
 			return new RowConverter.ArrayConverter<Character>(repeatedType,
@@ -327,7 +327,7 @@ public class RowConverter extends GroupConverter implements ParentDataHolder {
 		private Converter elementConverter;
 
 		ArrayConverter(Type elementType, Class elementClass, TypeInformation elementTypeInfo,
-					   ParentDataHolder parentDataHolder, int pos) {
+				ParentDataHolder parentDataHolder, int pos) {
 			this.elementClass = elementClass;
 			this.parentDataHolder = parentDataHolder;
 			this.pos = pos;

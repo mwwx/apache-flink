@@ -44,6 +44,8 @@ import java.util.{ArrayList => JArrayList, LinkedList => JLinkedList, List => JL
 
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
+import org.apache.flink.table.sources.lookup.LookupOptions
+import org.apache.flink.table.sources.lookup.cache.CacheStrategy
 
 import scala.collection.JavaConversions._
 
@@ -162,6 +164,10 @@ object TestCollectionTableFactory {
     override def getAsyncLookupFunction(lookupKeys: Array[String]): AsyncTableFunction[Row] = null
 
     override def isAsyncEnabled: Boolean = false
+
+    override def supportedCacheStrategies(): Array[CacheStrategy] = Array(CacheStrategy.ALL)
+
+    override def getLookupOptions: LookupOptions = null
   }
 
   /**

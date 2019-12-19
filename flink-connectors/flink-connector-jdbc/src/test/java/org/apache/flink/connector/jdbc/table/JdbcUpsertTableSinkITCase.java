@@ -55,6 +55,7 @@ import static org.apache.flink.table.api.Expressions.$;
 public class JdbcUpsertTableSinkITCase extends AbstractTestBase {
 
 	public static final String DB_URL = "jdbc:derby:memory:upsert";
+	public static final String DB_DRIVER = "org.apache.derby.jdbc.EmbeddedDriver";
 	public static final String OUTPUT_TABLE1 = "upsertSink";
 	public static final String OUTPUT_TABLE2 = "appendSink";
 	public static final String OUTPUT_TABLE3 = "batchSink";
@@ -139,8 +140,10 @@ public class JdbcUpsertTableSinkITCase extends AbstractTestBase {
 				"CREATE TABLE upsertSink (" +
 						"  real_data float" +
 						") WITH (" +
+						"  'update-mode'='upsert'," +
 						"  'connector.type'='jdbc'," +
 						"  'connector.url'='" + DB_URL + "'," +
+						"  'connector.driver'='" + DB_DRIVER + "'," +
 						"  'connector.table'='REAL_TABLE'" +
 						")");
 
@@ -173,8 +176,10 @@ public class JdbcUpsertTableSinkITCase extends AbstractTestBase {
 				"  cTag INT," +
 				"  ts TIMESTAMP(3)" +
 				") WITH (" +
+				"  'update-mode'='upsert'," +
 				"  'connector.type'='jdbc'," +
 				"  'connector.url'='" + DB_URL + "'," +
+				"  'connector.driver'='" + DB_DRIVER + "'," +
 				"  'connector.table'='" + OUTPUT_TABLE1 + "'" +
 				")");
 
@@ -212,8 +217,10 @@ public class JdbcUpsertTableSinkITCase extends AbstractTestBase {
 				"  num BIGINT," +
 				"  ts TIMESTAMP(3)" +
 				") WITH (" +
+				"  'update-mode'='upsert'," +
 				"  'connector.type'='jdbc'," +
 				"  'connector.url'='" + DB_URL + "'," +
+				"  'connector.driver'='" + DB_DRIVER + "'," +
 				"  'connector.table'='" + OUTPUT_TABLE2 + "'" +
 				")");
 
@@ -239,8 +246,10 @@ public class JdbcUpsertTableSinkITCase extends AbstractTestBase {
 				"NAME VARCHAR," +
 				"SCORE BIGINT" +
 				") WITH ( " +
+				"'update-mode'='upsert'," +
 				"'connector.type' = 'jdbc'," +
 				"'connector.url'='" + DB_URL + "'," +
+				"'connector.driver'='" + DB_DRIVER + "'," +
 				"'connector.table' = '" + OUTPUT_TABLE3 + "'" +
 				")");
 

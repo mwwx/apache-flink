@@ -21,7 +21,6 @@ package org.apache.flink.connector.jdbc.table;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
-import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcReadOptions;
 import org.apache.flink.connector.jdbc.split.JdbcNumericBetweenParametersProvider;
@@ -34,6 +33,7 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.sources.lookup.LookupOptions;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.util.Preconditions;
@@ -48,14 +48,14 @@ public class JdbcDynamicTableSource implements ScanTableSource, LookupTableSourc
 
 	private final JdbcOptions options;
 	private final JdbcReadOptions readOptions;
-	private final JdbcLookupOptions lookupOptions;
+	private final LookupOptions lookupOptions;
 	private TableSchema physicalSchema;
 	private final String dialectName;
 
 	public JdbcDynamicTableSource(
 			JdbcOptions options,
 			JdbcReadOptions readOptions,
-			JdbcLookupOptions lookupOptions,
+			LookupOptions lookupOptions,
 			TableSchema physicalSchema) {
 		this.options = options;
 		this.readOptions = readOptions;

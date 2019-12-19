@@ -19,17 +19,22 @@
 package org.apache.flink.connector.jdbc.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeTransformations;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 
 import java.sql.Types;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -43,6 +48,7 @@ import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.SHORT_TYPE_INFO;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
+import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.VOID_TYPE_INFO;
 import static org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO;
 
 /**
@@ -71,6 +77,7 @@ public class JdbcTypeUtil {
 		m.put(LocalTimeTypeInfo.LOCAL_DATE_TIME, Types.TIMESTAMP);
 		m.put(BIG_DEC_TYPE_INFO, Types.DECIMAL);
 		m.put(BYTE_PRIMITIVE_ARRAY_TYPE_INFO, Types.BINARY);
+		m.put(VOID_TYPE_INFO, Types.NULL);
 		TYPE_MAPPING = Collections.unmodifiableMap(m);
 
 		HashMap<Integer, String> names = new HashMap<>();
@@ -88,6 +95,9 @@ public class JdbcTypeUtil {
 		names.put(Types.TIMESTAMP, "TIMESTAMP");
 		names.put(Types.DECIMAL, "DECIMAL");
 		names.put(Types.BINARY, "BINARY");
+		names.put(Types.STRUCT, "STRUCT");
+		names.put(Types.ARRAY, "ARRAY");
+		names.put(Types.NULL, "NULL");
 		SQL_TYPE_NAMES = Collections.unmodifiableMap(names);
 	}
 
@@ -98,8 +108,12 @@ public class JdbcTypeUtil {
 
 		if (TYPE_MAPPING.containsKey(type)) {
 			return TYPE_MAPPING.get(type);
-		} else if (type instanceof ObjectArrayTypeInfo || type instanceof PrimitiveArrayTypeInfo) {
+		} else if (type instanceof ObjectArrayTypeInfo
+			|| type instanceof PrimitiveArrayTypeInfo
+			|| type instanceof BasicArrayTypeInfo) {
 			return Types.ARRAY;
+		} else if (type instanceof RowTypeInfo) {
+			return Types.STRUCT;
 		} else {
 			throw new IllegalArgumentException("Unsupported type: " + type);
 		}
@@ -130,4 +144,19 @@ public class JdbcTypeUtil {
 			});
 		return physicalSchemaBuilder.build();
 	}
+
+	/** SIMPLE_TIME_FORMAT. */
+	public static final DateTimeFormatter SIMPLE_TIME_FORMAT = new DateTimeFormatterBuilder()
+		.appendPattern("HH:mm:ss")
+		.appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
+		.appendOptional(new DateTimeFormatterBuilder().appendPattern("'Z'").toFormatter())
+		.toFormatter();
+
+	/** SIMPLE_TIMESTAMP_FORMAT. */
+	public static final DateTimeFormatter SIMPLE_TIMESTAMP_FORMAT = new DateTimeFormatterBuilder()
+		.append(DateTimeFormatter.ISO_LOCAL_DATE)
+		.appendOptional(new DateTimeFormatterBuilder().appendLiteral('T').toFormatter())
+		.appendOptional(new DateTimeFormatterBuilder().appendLiteral(' ').toFormatter())
+		.append(SIMPLE_TIME_FORMAT)
+		.toFormatter();
 }

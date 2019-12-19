@@ -81,6 +81,10 @@ public abstract class AbstractJdbcOutputFormat<T> extends RichOutputFormat<T> im
 				connection = null;
 			}
 		}
+
+		if (connectionProvider != null) {
+			connectionProvider.releaseConnectionPool();
+		}
 	}
 
 	@Override

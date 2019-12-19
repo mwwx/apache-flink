@@ -33,9 +33,15 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.sources.lookup.LookupOptions;
+import org.apache.flink.table.sources.lookup.SyncLookupTableFunction;
+import org.apache.flink.table.sources.lookup.cache.CacheStrategy;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.sql.Date;
@@ -58,9 +64,16 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToL
  */
 public class CsvTableSource
 	implements StreamTableSource<Row>, BatchTableSource<Row>, LookupableTableSource<Row>,
-	ProjectableTableSource<Row> {
+	ProjectableTableSource<Row>, DefinedRowtimeAttributes, DefinedProctimeAttribute{
 
 	private final CsvInputFormatConfig config;
+	private final LookupOptions lookupOptions;
+
+	/** Field name of the processing time attribute, null if no processing time field is defined. */
+	private String proctimeAttribute;
+
+	/** Descriptor for a rowtime attribute. */
+	private List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors;
 
 	/**
 	 * A {@link InputFormatTableSource} and {@link LookupableTableSource} for simple CSV files with
@@ -70,11 +83,12 @@ public class CsvTableSource
 	 * @param fieldNames The names of the table fields.
 	 * @param fieldTypes The types of the table fields.
 	 */
-	public CsvTableSource(String path, String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+	public CsvTableSource(String path, String[] fieldNames, TypeInformation<?>[] fieldTypes,
+				LookupOptions lookupOptions, String proctimeAttribute, List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors) {
 		this(path, fieldNames, fieldTypes,
 				IntStream.range(0, fieldNames.length).toArray(),
 				CsvInputFormat.DEFAULT_FIELD_DELIMITER, CsvInputFormat.DEFAULT_LINE_DELIMITER,
-				null, false, null, false);
+				null, false, null, false, lookupOptions, proctimeAttribute, rowtimeAttributeDescriptors);
 	}
 
 	/**
@@ -101,11 +115,46 @@ public class CsvTableSource
 			Character quoteCharacter,
 			boolean ignoreFirstLine,
 			String ignoreComments,
-			boolean lenient) {
+			boolean lenient,
+			LookupOptions lookupOptions,
+			String proctimeAttribute,
+			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors) {
 		this(path, fieldNames, fieldTypes,
 				IntStream.range(0, fieldNames.length).toArray(),
 				fieldDelim, lineDelim, quoteCharacter,
-				ignoreFirstLine, ignoreComments, lenient);
+				ignoreFirstLine, ignoreComments, lenient, lookupOptions, proctimeAttribute, rowtimeAttributeDescriptors);
+	}
+
+	/**
+	 * A {@link InputFormatTableSource} and {@link LookupableTableSource} for simple CSV files with
+	 * a (logically) unlimited number of fields.
+	 *
+	 * @param path            The path to the CSV file.
+	 * @param fieldNames      The names of the table fields.
+	 * @param fieldTypes      The types of the table fields.
+	 * @param fieldDelim      The field delimiter, "," by default.
+	 * @param lineDelim       The row delimiter, "\n" by default.
+	 * @param quoteCharacter  An optional quote character for String values, null by default.
+	 * @param ignoreFirstLine Flag to ignore the first line, false by default.
+	 * @param ignoreComments  An optional prefix to indicate comments, null by default.
+	 * @param lenient         Flag to skip records with parse error instead to fail, false by
+	 *                        default.
+	 */
+	public CsvTableSource(
+		String path,
+		String[] fieldNames,
+		TypeInformation<?>[] fieldTypes,
+		String fieldDelim,
+		String lineDelim,
+		Character quoteCharacter,
+		boolean ignoreFirstLine,
+		String ignoreComments,
+		boolean lenient,
+		LookupOptions lookupOptions) {
+		this(path, fieldNames, fieldTypes,
+			IntStream.range(0, fieldNames.length).toArray(),
+			fieldDelim, lineDelim, quoteCharacter,
+			ignoreFirstLine, ignoreComments, lenient, lookupOptions, null, new ArrayList<>());
 	}
 
 	/**
@@ -135,15 +184,23 @@ public class CsvTableSource
 			Character quoteCharacter,
 			boolean ignoreFirstLine,
 			String ignoreComments,
-			boolean lenient) {
+			boolean lenient,
+			LookupOptions lookupOptions,
+			String proctimeAttribute,
+			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors) {
 		this(new CsvInputFormatConfig(
-				path, fieldNames, TypeConversions.fromLegacyInfoToDataType(fieldTypes), selectedFields,
-				fieldDelim, lineDelim, quoteCharacter, ignoreFirstLine,
-				ignoreComments, lenient, false));
+			path, fieldNames, TypeConversions.fromLegacyInfoToDataType(fieldTypes), selectedFields,
+			fieldDelim, lineDelim, quoteCharacter, ignoreFirstLine,
+			ignoreComments, lenient, false), lookupOptions,
+			proctimeAttribute, rowtimeAttributeDescriptors);
 	}
 
-	private CsvTableSource(CsvInputFormatConfig config) {
+	private CsvTableSource(CsvInputFormatConfig config, LookupOptions lookupOptions,
+			String proctimeAttribute, List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors) {
 		this.config = config;
+		this.lookupOptions = lookupOptions;
+		this.proctimeAttribute = proctimeAttribute;
+		this.rowtimeAttributeDescriptors = rowtimeAttributeDescriptors;
 	}
 
 	/**
@@ -187,7 +244,7 @@ public class CsvTableSource
 		if (fields.length == 0) {
 			fields = new int[0];
 		}
-		return new CsvTableSource(config.select(fields));
+		return new CsvTableSource(config.select(fields), lookupOptions, proctimeAttribute, rowtimeAttributeDescriptors);
 	}
 
 	@Override
@@ -211,7 +268,7 @@ public class CsvTableSource
 
 	@Override
 	public TableFunction<Row> getLookupFunction(String[] lookupKeys) {
-		return new CsvLookupFunction(config, lookupKeys);
+		return new SyncLookupTableFunction(lookupOptions, new CSVDataFetcher(config, lookupKeys));
 	}
 
 	@Override
@@ -221,7 +278,17 @@ public class CsvTableSource
 
 	@Override
 	public boolean isAsyncEnabled() {
-		return false;
+		return lookupOptions.isAsyncEnabled();
+	}
+
+	@Override
+	public CacheStrategy[] supportedCacheStrategies() {
+		return new CacheStrategy[] {CacheStrategy.ALL};
+	}
+
+	@Override
+	public LookupOptions getLookupOptions() {
+		return lookupOptions;
 	}
 
 	@Override
@@ -247,6 +314,17 @@ public class CsvTableSource
 		return Objects.hash(config);
 	}
 
+	@Nullable
+	@Override
+	public String getProctimeAttribute() {
+		return proctimeAttribute;
+	}
+
+	@Override
+	public List<RowtimeAttributeDescriptor> getRowtimeAttributeDescriptors() {
+		return rowtimeAttributeDescriptors;
+	}
+
 	/**
 	 * A builder for creating CsvTableSource instances.
 	 */
@@ -260,6 +338,9 @@ public class CsvTableSource
 		private String commentPrefix;
 		private boolean lenient = false;
 		private boolean emptyColumnAsNull = false;
+		private LookupOptions lookupOptions;
+		private String proctimeAttribute;
+		private List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors;
 
 		/**
 		 * Sets the path to the CSV file. Required.
@@ -319,6 +400,28 @@ public class CsvTableSource
 					type = fieldType;
 			}
 			schema.put(fieldName, type);
+			return this;
+		}
+
+		public Builder fields(String[] fieldNames, DataType[] fieldTypes) {
+			Preconditions.checkNotNull(fieldNames, "fieldNames can't be null");
+			Preconditions.checkNotNull(fieldTypes, "fieldTypes can't be null");
+			Preconditions.checkArgument(fieldNames.length == fieldTypes.length,
+				"fieldNames and fieldTypes must have same length.");
+			for (int i = 0; i < fieldNames.length; i++) {
+				field(fieldNames[i], fieldTypes[i]);
+			}
+			return this;
+		}
+
+		public Builder fields(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+			Preconditions.checkNotNull(fieldNames, "fieldNames can't be null");
+			Preconditions.checkNotNull(fieldTypes, "fieldTypes can't be null");
+			Preconditions.checkArgument(fieldNames.length == fieldTypes.length,
+				"fieldNames and fieldTypes must have same length.");
+			for (int i = 0; i < fieldNames.length; i++) {
+				field(fieldNames[i], fieldTypes[i]);
+			}
 			return this;
 		}
 
@@ -385,6 +488,30 @@ public class CsvTableSource
 		}
 
 		/**
+		 * @param lookupOptions lookupOptions for table source.
+		 */
+		public Builder lookupOptions(LookupOptions lookupOptions) {
+			this.lookupOptions = lookupOptions;
+			return this;
+		}
+
+		/**
+		 * @param proctimeAttribute proctimeAttribute for table source.
+		 */
+		public Builder proctimeAttribute(String proctimeAttribute) {
+			this.proctimeAttribute = proctimeAttribute;
+			return this;
+		}
+
+		/**
+		 * @param rowtimeAttributeDescriptors proctimeAttribute for table source.
+		 */
+		public Builder rowtimeAttributeDescriptors(List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors) {
+			this.rowtimeAttributeDescriptors = rowtimeAttributeDescriptors;
+			return this;
+		}
+
+		/**
 		 * Apply the current values and constructs a newly-created CsvTableSource.
 		 *
 		 * @return a newly-created CsvTableSource
@@ -408,7 +535,7 @@ public class CsvTableSource
 					isIgnoreFirstLine,
 					commentPrefix,
 					lenient,
-					emptyColumnAsNull));
+					emptyColumnAsNull), lookupOptions, proctimeAttribute, rowtimeAttributeDescriptors);
 		}
 	}
 
@@ -509,7 +636,10 @@ public class CsvTableSource
 		}
 	}
 
-	private static class CsvInputFormatConfig implements Serializable {
+	/**
+	 * CsvInputFormatConfig.
+	 */
+	protected static class CsvInputFormatConfig implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		private final String path;

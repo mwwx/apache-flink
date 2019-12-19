@@ -32,12 +32,14 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.Preconditions
-
 import java.util
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{CompletableFuture, ExecutorService, Executors}
 import java.util.function.{Consumer, Supplier}
+
+import org.apache.flink.table.sources.lookup.LookupOptions
+import org.apache.flink.table.sources.lookup.cache.CacheStrategy
 
 import scala.annotation.varargs
 import scala.collection.JavaConverters._
@@ -84,6 +86,10 @@ class InMemoryLookupableTableSource(
   override def isAsyncEnabled: Boolean = asyncEnabled
 
   override def getProducedDataType: DataType = schema.toRowDataType
+
+  override def supportedCacheStrategies(): Array[CacheStrategy] = Array(CacheStrategy.ALL)
+
+  override def getLookupOptions: LookupOptions = null
 
   override def getTableSchema: TableSchema = schema
 

@@ -44,6 +44,7 @@ public class JdbcDataTypeTest {
 		") WITH (\n" +
 		"  'connector.type'='jdbc',\n" +
 		"  'connector.url'='" + "jdbc:%s:memory:test" + "',\n" +
+		"  'connector.driver'='memory'\n," +
 		"  'connector.table'='myTable'\n" +
 		")";
 

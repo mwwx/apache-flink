@@ -45,6 +45,8 @@ public class MySQLDialect extends AbstractDialect {
 	private static final int MAX_DECIMAL_PRECISION = 65;
 	private static final int MIN_DECIMAL_PRECISION = 1;
 
+	private boolean isQuoting = false;
+
 	@Override
 	public boolean canHandle(String url) {
 		return url.startsWith("jdbc:mysql:");
@@ -61,8 +63,29 @@ public class MySQLDialect extends AbstractDialect {
 	}
 
 	@Override
+	public boolean isQuoting() {
+		return isQuoting;
+	}
+
+	@Override
+	public void setQuoting(boolean quoting) {
+		this.isQuoting = quoting;
+	}
+
+	@Override
 	public String quoteIdentifier(String identifier) {
-		return "`" + identifier + "`";
+		if (!isQuoting()) {
+			return identifier;
+		}
+
+		int index = identifier.indexOf(".");
+		if (index > -1) {
+			String[] names = identifier.split("\\.");
+			return Arrays.stream(names).map(f -> "`" + f + "`")
+				.collect(Collectors.joining("."));
+		} else {
+			return "`" + identifier + "`";
+		}
 	}
 
 	/**

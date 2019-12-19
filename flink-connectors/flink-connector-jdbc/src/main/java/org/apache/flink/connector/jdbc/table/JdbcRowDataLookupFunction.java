@@ -23,12 +23,12 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialects;
 import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
-import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.sources.lookup.LookupOptions;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -82,7 +82,7 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
 
 	public JdbcRowDataLookupFunction(
 			JdbcOptions options,
-			JdbcLookupOptions lookupOptions,
+			LookupOptions lookupOptions,
 			String[] fieldNames,
 			DataType[] fieldTypes,
 			String[] keyNames,
@@ -103,8 +103,8 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
 				return fieldTypes[nameList.indexOf(s)];
 			})
 			.toArray(DataType[]::new);
-		this.cacheMaxSize = lookupOptions.getCacheMaxSize();
-		this.cacheExpireMs = lookupOptions.getCacheExpireMs();
+		this.cacheMaxSize = lookupOptions.getCacheSize();
+		this.cacheExpireMs = lookupOptions.getCacheTTLMs();
 		this.maxRetryTimes = lookupOptions.getMaxRetryTimes();
 		this.query = options.getDialect().getSelectFromStatement(
 			options.getTableName(), fieldNames, keyNames);

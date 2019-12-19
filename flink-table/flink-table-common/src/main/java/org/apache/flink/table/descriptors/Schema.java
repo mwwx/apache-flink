@@ -45,6 +45,7 @@ public class Schema implements Descriptor {
 
 	public static final String SCHEMA = "schema";
 	public static final String SCHEMA_NAME = "name";
+	public static final String ORIGIN_SCHEMA = "origin-schema";
 	/**
 	 * @deprecated {@link Schema} uses the legacy type key (e.g. schema.0.type = LONG) to store type information in
 	 * prior v1.9. Since v1.10, {@link Schema} uses data type key (e.g. schema.0.data-type = BIGINT) to store types.

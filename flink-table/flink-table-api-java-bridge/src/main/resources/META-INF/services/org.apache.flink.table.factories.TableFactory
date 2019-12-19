@@ -14,6 +14,6 @@
 # limitations under the License.
 
 org.apache.flink.table.sources.CsvBatchTableSourceFactory
-org.apache.flink.table.sources.CsvAppendTableSourceFactory
+org.apache.flink.table.sources.CsvTableSourceFactory
 org.apache.flink.table.sinks.CsvBatchTableSinkFactory
 org.apache.flink.table.sinks.CsvAppendTableSinkFactory
