@@ -18,14 +18,16 @@
 package org.apache.flink.connector.jdbc.internal.connection;
 
 import org.apache.flink.connector.jdbc.JdbcConnectionOptions;
+import org.apache.flink.connector.jdbc.utils.JdbcUtils;
 
+import org.apache.commons.dbcp2.BasicDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 /**
  * Simple JDBC connection provider.
@@ -40,23 +42,47 @@ public class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Ser
 
 	private transient volatile Connection connection;
 
+	private transient volatile BasicDataSource dataSource;
+
 	public SimpleJdbcConnectionProvider(JdbcConnectionOptions jdbcOptions) {
 		this.jdbcOptions = jdbcOptions;
 	}
 
 	@Override
 	public Connection getConnection() throws SQLException, ClassNotFoundException {
+		if (dataSource == null) {
+			synchronized (this) {
+				if (dataSource == null) {
+					dataSource = new BasicDataSource();
+					dataSource.setDriverClassName(jdbcOptions.getDriverName());
+					dataSource.setUrl(jdbcOptions.getDbURL());
+
+					if (jdbcOptions.getUsername().isPresent()) {
+						dataSource.setUsername(jdbcOptions.getUsername().get());
+						dataSource.setPassword(jdbcOptions.getPassword().orElse(null));
+					}
+
+					dataSource.setTestOnCreate(true);
+					dataSource.setTestOnBorrow(true);
+					dataSource.setTestOnReturn(true);
+					dataSource.setTestWhileIdle(true);
+					dataSource.setMaxTotal(2);
+				}
+			}
+		}
+
 		if (connection == null) {
 			synchronized (this) {
 				if (connection == null) {
-					Class.forName(jdbcOptions.getDriverName());
-					if (jdbcOptions.getUsername().isPresent()) {
-						connection = DriverManager.getConnection(jdbcOptions.getDbURL(), jdbcOptions.getUsername().get(), jdbcOptions.getPassword().orElse(null));
-					} else {
-						connection = DriverManager.getConnection(jdbcOptions.getDbURL());
-					}
+					connection = dataSource.getConnection();
 				}
 			}
+		}
+
+		if (JdbcUtils.isLinkoopdb(jdbcOptions.getDriverName())) {
+			Statement statement = connection.createStatement();
+			statement.execute("set session count off");
+			statement.close();
 		}
 		return connection;
 	}
@@ -65,12 +91,25 @@ public class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Ser
 	public Connection reestablishConnection() throws SQLException, ClassNotFoundException {
 		try {
 			connection.close();
-		} catch (SQLException e) {
-			LOG.info("JDBC connection close failed.", e);
+		} catch (SQLException ex) {
+			LOG.warn("JDBC connection close failed.", ex);
 		} finally {
 			connection = null;
 		}
 		connection = getConnection();
 		return connection;
+	}
+
+	@Override
+	public void releaseConnectionPool() {
+		try {
+			if (dataSource != null) {
+				dataSource.close();
+			}
+		} catch (SQLException ex) {
+			LOG.warn("DataSource couldn't be closed.", ex);
+		} finally {
+			dataSource = null;
+		}
 	}
 }

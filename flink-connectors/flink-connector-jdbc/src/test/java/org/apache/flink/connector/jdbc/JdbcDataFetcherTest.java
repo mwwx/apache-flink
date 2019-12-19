@@ -20,10 +20,12 @@ package org.apache.flink.connector.jdbc;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
+import org.apache.flink.connector.jdbc.internal.JdbcDataFetcher;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
-import org.apache.flink.connector.jdbc.table.JdbcLookupFunction;
 import org.apache.flink.connector.jdbc.table.JdbcLookupTestBase;
+import org.apache.flink.table.sources.lookup.LookupOptions;
+import org.apache.flink.table.sources.lookup.SyncLookupTableFunction;
+import org.apache.flink.table.sources.lookup.cache.CacheType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 
@@ -39,9 +41,9 @@ import java.util.stream.Collectors;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Test suite for {@link JdbcLookupFunction}.
+ * Test suite for {@link org.apache.flink.connector.jdbc.internal.JdbcDataFetcher}.
  */
-public class JdbcLookupFunctionTest extends JdbcLookupTestBase {
+public class JdbcDataFetcherTest extends JdbcLookupTestBase {
 
 	public static final String DB_URL = "jdbc:derby:memory:lookup";
 	public static final String LOOKUP_TABLE = "lookup_table";
@@ -59,8 +61,11 @@ public class JdbcLookupFunctionTest extends JdbcLookupTestBase {
 
 	@Test
 	public void testEval() throws Exception {
+		JdbcOptions jdbcOptions = buildJdbcOptions();
+		LookupOptions lookupOptions = buildLookupOptions();
+		JdbcDataFetcher dataFetcher = buildLookupFunction(jdbcOptions, lookupOptions);
 
-		JdbcLookupFunction lookupFunction = buildLookupFunction();
+		SyncLookupTableFunction lookupFunction = new SyncLookupTableFunction(lookupOptions, dataFetcher);
 		ListOutputCollector collector = new ListOutputCollector();
 		lookupFunction.setCollector(collector);
 
@@ -68,10 +73,10 @@ public class JdbcLookupFunctionTest extends JdbcLookupTestBase {
 
 		lookupFunction.eval(1, "1");
 
-		// close connection
-		lookupFunction.getDbConnection().close();
-
 		lookupFunction.eval(2, "3");
+
+		// close connection
+		lookupFunction.close();
 
 		List<String> result = Lists.newArrayList(collector.getOutputs()).stream()
 			.map(Row::toString)
@@ -87,24 +92,30 @@ public class JdbcLookupFunctionTest extends JdbcLookupTestBase {
 		assertEquals(expected, result);
 	}
 
-	private JdbcLookupFunction buildLookupFunction() {
-		JdbcOptions jdbcOptions = JdbcOptions.builder()
+	private JdbcOptions buildJdbcOptions() {
+		return JdbcOptions.builder()
 			.setDriverName(DB_DRIVER)
 			.setDBUrl(DB_URL)
 			.setTableName(LOOKUP_TABLE)
 			.build();
+	}
 
-		JdbcLookupOptions lookupOptions = JdbcLookupOptions.builder().build();
-
-		JdbcLookupFunction lookupFunction = JdbcLookupFunction.builder()
-			.setOptions(jdbcOptions)
-			.setLookupOptions(lookupOptions)
-			.setFieldTypes(fieldTypes)
-			.setFieldNames(fieldNames)
-			.setKeyNames(lookupKeys)
+	private LookupOptions buildLookupOptions() {
+		return LookupOptions.builder()
+			.setCacheType(CacheType.MEMORY)
 			.build();
+	}
 
-		return lookupFunction;
+	private JdbcDataFetcher buildLookupFunction(
+		JdbcOptions jdbcOptions,
+		LookupOptions lookupOptions) {
+		return new JdbcDataFetcher(
+			jdbcOptions,
+			lookupOptions,
+			fieldNames,
+			fieldTypes,
+			lookupKeys,
+			1);
 	}
 
 	private static final class ListOutputCollector implements Collector<Row> {

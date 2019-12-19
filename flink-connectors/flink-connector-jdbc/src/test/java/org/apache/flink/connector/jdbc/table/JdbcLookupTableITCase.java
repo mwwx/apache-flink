@@ -19,13 +19,13 @@
 package org.apache.flink.connector.jdbc.table;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.sources.lookup.LookupOptions;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
@@ -120,8 +120,8 @@ public class JdbcLookupTableITCase extends JdbcLookupTestBase {
 				new DataType[]{DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING()})
 				.build());
 		if (useCache) {
-			builder.setLookupOptions(JdbcLookupOptions.builder()
-				.setCacheMaxSize(1000).setCacheExpireMs(1000 * 1000).build());
+			builder.setLookupOptions(LookupOptions.builder()
+				.setCacheSize(1000).setCacheTTLMs(1000 * 1000).build());
 		}
 		tEnv.registerFunction("jdbcLookup",
 			builder.build().getLookupFunction(t.getSchema().getFieldNames()));

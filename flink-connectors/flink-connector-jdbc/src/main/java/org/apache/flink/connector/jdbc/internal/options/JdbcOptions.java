@@ -39,8 +39,9 @@ public class JdbcOptions extends JdbcConnectionOptions {
 	private String tableName;
 	private JdbcDialect dialect;
 
-	private JdbcOptions(String dbURL, String tableName, String driverName, String username,
-						String password, JdbcDialect dialect) {
+	private JdbcOptions(String dbURL, String tableName,
+		String driverName, String username,
+		String password, JdbcDialect dialect) {
 		super(dbURL, driverName, username, password);
 		this.tableName = tableName;
 		this.dialect = dialect;
@@ -82,6 +83,7 @@ public class JdbcOptions extends JdbcConnectionOptions {
 		private String driverName;
 		private String username;
 		private String password;
+		private boolean isQuoting = false;
 		private JdbcDialect dialect;
 
 		/**
@@ -126,6 +128,14 @@ public class JdbcOptions extends JdbcConnectionOptions {
 		}
 
 		/**
+		 * optional, case sensitive, default is Case insensitive.
+		 */
+		public Builder setIsQuoting(boolean isQuoting) {
+			this.isQuoting = isQuoting;
+			return this;
+		}
+
+		/**
 		 * optional, Handle the SQL dialect of jdbc driver. If not set, it will be infer by
 		 * {@link JdbcDialects#get} from DB url.
 		 */
@@ -150,6 +160,7 @@ public class JdbcOptions extends JdbcConnectionOptions {
 				});
 			}
 
+			this.dialect.setQuoting(isQuoting);
 			return new JdbcOptions(dbURL, tableName, driverName, username, password, dialect);
 		}
 	}

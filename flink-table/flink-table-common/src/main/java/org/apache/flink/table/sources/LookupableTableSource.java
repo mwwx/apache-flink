@@ -21,6 +21,8 @@ package org.apache.flink.table.sources;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.sources.lookup.LookupOptions;
+import org.apache.flink.table.sources.lookup.cache.CacheStrategy;
 
 /**
  * A {@link TableSource} which supports for lookup accessing via key column(s).
@@ -52,4 +54,21 @@ public interface LookupableTableSource<T> extends TableSource<T> {
 	 * {@link #getLookupFunction(String[])} will be used.
 	 */
 	boolean isAsyncEnabled();
+
+	/**
+	 * supported cache strategies.
+	 */
+	CacheStrategy[] supportedCacheStrategies();
+
+	default boolean isSupportCacheStrategy(CacheStrategy cacheStrategy) {
+		for (CacheStrategy strategy : supportedCacheStrategies()) {
+			if (strategy.equals(cacheStrategy)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	LookupOptions getLookupOptions();
+
 }

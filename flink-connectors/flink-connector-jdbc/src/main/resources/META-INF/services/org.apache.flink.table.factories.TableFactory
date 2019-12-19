@@ -14,4 +14,7 @@
 # limitations under the License.
 
 org.apache.flink.connector.jdbc.catalog.factory.JdbcCatalogFactory
-org.apache.flink.connector.jdbc.table.JdbcTableSourceSinkFactory
+org.apache.flink.connector.jdbc.table.JdbcRetractTableSinkFactory
+org.apache.flink.connector.jdbc.table.JdbcUpsertTableSinkFactory
+org.apache.flink.connector.jdbc.table.JdbcAppendTableSinkFactory
+org.apache.flink.connector.jdbc.table.JdbcTableSourceFactory

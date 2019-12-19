@@ -24,9 +24,11 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FileSystemValidator;
 import org.apache.flink.table.descriptors.FormatDescriptorValidator;
+import org.apache.flink.table.descriptors.LookupValidator;
 import org.apache.flink.table.descriptors.OldCsvValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.sources.lookup.LookupOptions;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.utils.TableSchemaUtils;
@@ -56,7 +58,16 @@ import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_IGNORE_P
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_LINE_DELIMITER;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_QUOTE_CHARACTER;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_TYPE_VALUE;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_CLASS;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_FROM;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_SERIALIZED;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_TYPE;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_CLASS;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_DELAY;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_SERIALIZED;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_TYPE;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA_PROCTIME;
 
 /**
  * Factory base for creating configured instances of {@link CsvTableSource}.
@@ -103,6 +114,19 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
 		properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
 
+		// time attributes
+		properties.add(SCHEMA + ".#." + SCHEMA_PROCTIME);
+		properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_TYPE);
+		properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_FROM);
+		properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_CLASS);
+		properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_SERIALIZED);
+		properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_TYPE);
+		properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_CLASS);
+		properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_SERIALIZED);
+		properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_DELAY);
+
+		//lookup
+		properties.addAll(LookupValidator.getProperties());
 		return properties;
 	}
 
@@ -117,6 +141,7 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		new FileSystemValidator().validate(params);
 		new OldCsvValidator().validate(params);
 		new SchemaValidator(isStreaming, false, false).validate(params);
+		new LookupValidator().validate(params);
 
 		// build
 		CsvTableSource.Builder csvTableSourceBuilder = new CsvTableSource.Builder();
@@ -159,6 +184,12 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 				csvTableSourceBuilder.ignoreParseErrors();
 			}
 		});
+		String proctimeAttr = SchemaValidator.deriveProctimeAttribute(params).orElse(null);
+		List<RowtimeAttributeDescriptor> rowtimeAttr = SchemaValidator.deriveRowtimeAttributes(params);
+		csvTableSourceBuilder.proctimeAttribute(proctimeAttr)
+			.rowtimeAttributeDescriptors(rowtimeAttr);
+		LookupOptions lookupOptions = LookupValidator.getLookupOptions(params);
+		csvTableSourceBuilder.lookupOptions(lookupOptions);
 
 		return csvTableSourceBuilder.build();
 	}

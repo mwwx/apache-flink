@@ -25,6 +25,9 @@ import org.junit.Before;
  */
 public abstract class JdbcTestBase {
 
+	public static final String DRIVER_CLASS = "org.apache.derby.jdbc.EmbeddedDriver";
+	public static final String DB_URL = "jdbc:derby:memory:ebookshop";
+
 	@Before
 	public final void before() throws Exception {
 		JdbcTestFixture.initSchema(getDbMetadata());

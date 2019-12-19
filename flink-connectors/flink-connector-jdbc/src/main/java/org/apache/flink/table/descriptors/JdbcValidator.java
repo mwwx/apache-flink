@@ -42,6 +42,7 @@ public class JdbcValidator extends ConnectorDescriptorValidator {
 	public static final String CONNECTOR_DRIVER = "connector.driver";
 	public static final String CONNECTOR_USERNAME = "connector.username";
 	public static final String CONNECTOR_PASSWORD = "connector.password";
+	public static final String CONNECTOR_QUOTING = "connector.quoting";
 
 	public static final String CONNECTOR_READ_QUERY = "connector.read.query";
 	public static final String CONNECTOR_READ_PARTITION_COLUMN = "connector.read.partition.column";
@@ -50,20 +51,30 @@ public class JdbcValidator extends ConnectorDescriptorValidator {
 	public static final String CONNECTOR_READ_PARTITION_NUM = "connector.read.partition.num";
 	public static final String CONNECTOR_READ_FETCH_SIZE = "connector.read.fetch-size";
 
-	public static final String CONNECTOR_LOOKUP_CACHE_MAX_ROWS = "connector.lookup.cache.max-rows";
-	public static final String CONNECTOR_LOOKUP_CACHE_TTL = "connector.lookup.cache.ttl";
-	public static final String CONNECTOR_LOOKUP_MAX_RETRIES = "connector.lookup.max-retries";
-
 	public static final String CONNECTOR_WRITE_FLUSH_MAX_ROWS = "connector.write.flush.max-rows";
 	public static final String CONNECTOR_WRITE_FLUSH_INTERVAL = "connector.write.flush.interval";
 	public static final String CONNECTOR_WRITE_MAX_RETRIES = "connector.write.max-retries";
+
+	public static final String CONNECTOR_INCREASE_COLUMN = "connector.read.increase-column";
+	public static final String CONNECTOR_PRIMARY_KEYS = "connector.primary-keys";
+	public static final String CONNECTOR_OFFSET = "connector.offset";
 
 	@Override
 	public void validate(DescriptorProperties properties) {
 		super.validate(properties);
 		validateCommonProperties(properties);
+	}
+
+	public void validateSource(DescriptorProperties properties) {
+		super.validate(properties);
+		validateCommonProperties(properties);
 		validateReadProperties(properties);
 		validateLookupProperties(properties);
+	}
+
+	public void validateSink(DescriptorProperties properties) {
+		super.validate(properties);
+		validateCommonProperties(properties);
 		validateSinkProperties(properties);
 	}
 
@@ -113,14 +124,7 @@ public class JdbcValidator extends ConnectorDescriptorValidator {
 	}
 
 	private void validateLookupProperties(DescriptorProperties properties) {
-		properties.validateLong(CONNECTOR_LOOKUP_CACHE_MAX_ROWS, true);
-		properties.validateDuration(CONNECTOR_LOOKUP_CACHE_TTL, true, 1);
-		properties.validateInt(CONNECTOR_LOOKUP_MAX_RETRIES, true);
-
-		checkAllOrNone(properties, new String[]{
-			CONNECTOR_LOOKUP_CACHE_MAX_ROWS,
-			CONNECTOR_LOOKUP_CACHE_TTL
-		});
+		new LookupValidator().validate(properties);
 	}
 
 	private void validateSinkProperties(DescriptorProperties properties) {

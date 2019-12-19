@@ -35,20 +35,27 @@ public class JdbcReadOptions implements Serializable {
 
 	private final int fetchSize;
 
+	private final String increaseColumn;
+	private final Long offset;
+
 	private JdbcReadOptions(
 			String query,
 			String partitionColumnName,
 			Long partitionLowerBound,
 			Long partitionUpperBound,
 			Integer numPartitions,
-			int fetchSize) {
+			String increaseColumn,
+			int fetchSize,
+			Long offset) {
 		this.query = query;
 		this.partitionColumnName = partitionColumnName;
 		this.partitionLowerBound = partitionLowerBound;
 		this.partitionUpperBound = partitionUpperBound;
 		this.numPartitions = numPartitions;
 
+		this.increaseColumn = increaseColumn;
 		this.fetchSize = fetchSize;
+		this.offset = offset;
 	}
 
 	public Optional<String> getQuery() {
@@ -71,8 +78,16 @@ public class JdbcReadOptions implements Serializable {
 		return Optional.ofNullable(numPartitions);
 	}
 
+	public Optional<String> getIncreaseColumn() {
+		return Optional.ofNullable(increaseColumn);
+	}
+
 	public int getFetchSize() {
 		return fetchSize;
+	}
+
+	public Optional<Long> getOffset() {
+		return Optional.ofNullable(offset);
 	}
 
 	public static Builder builder() {
@@ -84,11 +99,12 @@ public class JdbcReadOptions implements Serializable {
 		if (o instanceof JdbcReadOptions) {
 			JdbcReadOptions options = (JdbcReadOptions) o;
 			return Objects.equals(query, options.query) &&
-					Objects.equals(partitionColumnName, options.partitionColumnName) &&
-					Objects.equals(partitionLowerBound, options.partitionLowerBound) &&
-					Objects.equals(partitionUpperBound, options.partitionUpperBound) &&
-					Objects.equals(numPartitions, options.numPartitions) &&
-					Objects.equals(fetchSize, options.fetchSize);
+				Objects.equals(partitionColumnName, options.partitionColumnName) &&
+				Objects.equals(partitionLowerBound, options.partitionLowerBound) &&
+				Objects.equals(partitionUpperBound, options.partitionUpperBound) &&
+				Objects.equals(numPartitions, options.numPartitions) &&
+				Objects.equals(increaseColumn, options.increaseColumn) &&
+				Objects.equals(fetchSize, options.fetchSize);
 		} else {
 			return false;
 		}
@@ -105,6 +121,9 @@ public class JdbcReadOptions implements Serializable {
 		protected Integer numPartitions;
 
 		protected int fetchSize = 0;
+
+		private Long offset;
+		private String increaseColumn;
 
 		/**
 		 * optional, SQL query statement for this JDBC source.
@@ -155,9 +174,26 @@ public class JdbcReadOptions implements Serializable {
 			return this;
 		}
 
+		/**
+		 * optional, for state recovery.
+		 */
+		public Builder setOffset(long offset) {
+			this.offset = offset;
+			return this;
+		}
+
+		/**
+		 * optional, increaseColumn.
+		 */
+		public Builder setIncreaseColumn(String increaseColumn) {
+			this.increaseColumn = increaseColumn;
+			return this;
+		}
+
 		public JdbcReadOptions build() {
 			return new JdbcReadOptions(
-				query, partitionColumnName, partitionLowerBound, partitionUpperBound, numPartitions, fetchSize);
+				query, partitionColumnName, partitionLowerBound, partitionUpperBound,
+				numPartitions, increaseColumn, fetchSize, offset);
 		}
 	}
 }

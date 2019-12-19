@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.io.jdbc.split;
 
-import org.apache.flink.api.java.io.jdbc.JDBCInputFormat;
 import org.apache.flink.connector.jdbc.split.JdbcGenericParameterValuesProvider;
 
 import java.io.Serializable;

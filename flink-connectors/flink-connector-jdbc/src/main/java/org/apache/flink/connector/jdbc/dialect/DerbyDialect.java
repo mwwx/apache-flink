@@ -41,6 +41,8 @@ class DerbyDialect extends AbstractDialect {
 	private static final int MAX_DECIMAL_PRECISION = 31;
 	private static final int MIN_DECIMAL_PRECISION = 1;
 
+	private boolean isQuoting = false;
+
 	@Override
 	public boolean canHandle(String url) {
 		return url.startsWith("jdbc:derby:");
@@ -84,6 +86,16 @@ class DerbyDialect extends AbstractDialect {
 	@Override
 	public int minTimestampPrecision() {
 		return MIN_TIMESTAMP_PRECISION;
+	}
+
+	@Override
+	public boolean isQuoting() {
+		return isQuoting;
+	}
+
+	@Override
+	public void setQuoting(boolean quoting) {
+		this.isQuoting = quoting;
 	}
 
 	@Override

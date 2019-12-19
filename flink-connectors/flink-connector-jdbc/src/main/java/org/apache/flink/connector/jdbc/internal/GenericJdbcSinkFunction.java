@@ -19,6 +19,7 @@
 package org.apache.flink.connector.jdbc.internal;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -67,5 +68,10 @@ public class GenericJdbcSinkFunction<T> extends RichSinkFunction<T> implements C
 	@Override
 	public void close() {
 		outputFormat.close();
+	}
+
+	@VisibleForTesting
+	public AbstractJdbcOutputFormat<T> getOutputFormat() {
+		return this.outputFormat;
 	}
 }

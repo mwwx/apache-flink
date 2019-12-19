@@ -18,10 +18,12 @@
 
 package org.apache.flink.connector.jdbc.table;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.connector.jdbc.JdbcInputFormat;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
-import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
+import org.apache.flink.connector.jdbc.internal.JdbcDataFetcher;
+import org.apache.flink.connector.jdbc.internal.JdbcSourceFunction;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcReadOptions;
 import org.apache.flink.connector.jdbc.split.JdbcNumericBetweenParametersProvider;
@@ -31,15 +33,28 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.sources.DefinedFieldMapping;
+import org.apache.flink.table.sources.DefinedProctimeAttribute;
+import org.apache.flink.table.sources.DefinedRowtimeAttributes;
 import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.sources.ProjectableTableSource;
+import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.sources.lookup.AsyncLookupTableFunction;
+import org.apache.flink.table.sources.lookup.LookupOptions;
+import org.apache.flink.table.sources.lookup.SyncLookupTableFunction;
+import org.apache.flink.table.sources.lookup.cache.CacheStrategy;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.types.Row;
 
+import javax.annotation.Nullable;
+
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
@@ -49,36 +64,59 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * {@link TableSource} for JDBC.
  */
 public class JdbcTableSource implements
-		StreamTableSource<Row>,
-		ProjectableTableSource<Row>,
-		LookupableTableSource<Row> {
+	StreamTableSource<Row>,
+	ProjectableTableSource<Row>,
+	LookupableTableSource<Row>,
+	DefinedProctimeAttribute,
+	DefinedRowtimeAttributes,
+	DefinedFieldMapping {
 
 	private final JdbcOptions options;
 	private final JdbcReadOptions readOptions;
-	private final JdbcLookupOptions lookupOptions;
+	private final LookupOptions lookupOptions;
 	private final TableSchema schema;
+	private final TableSchema originSchema;
 
 	// index of fields selected, null means that all fields are selected
 	private final int[] selectFields;
+
+	/** Field name of the processing time attribute, null if no processing time field is defined. */
+	private String proctimeAttribute;
+
+	/** Descriptor for a rowtime attribute. */
+	private List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors;
+
+	/** Mapping for the fields of the table schema to fields of the physical returned type. */
+	private Map<String, String> fieldMapping;
+
 	private final DataType producedDataType;
 
 	private JdbcTableSource(
-		JdbcOptions options, JdbcReadOptions readOptions, JdbcLookupOptions lookupOptions, TableSchema schema) {
-		this(options, readOptions, lookupOptions, schema, null);
+		JdbcOptions options, JdbcReadOptions readOptions, LookupOptions lookupOptions, TableSchema schema,
+		TableSchema originSchema, Map<String, String> fieldMapping,
+		String proctimeAttribute, List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors) {
+		this(options, readOptions, lookupOptions, schema,
+			originSchema, fieldMapping, proctimeAttribute,
+			rowtimeAttributeDescriptors, null);
 	}
 
 	private JdbcTableSource(
-		JdbcOptions options, JdbcReadOptions readOptions, JdbcLookupOptions lookupOptions,
-		TableSchema schema, int[] selectFields) {
+		JdbcOptions options, JdbcReadOptions readOptions, LookupOptions lookupOptions,
+		TableSchema schema, TableSchema originSchema, Map<String, String> fieldMapping, String proctimeAttribute,
+		List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors, int[] selectFields) {
 		this.options = options;
 		this.readOptions = readOptions;
 		this.lookupOptions = lookupOptions;
 		this.schema = schema;
+		this.originSchema = originSchema;
+		this.fieldMapping = fieldMapping;
 
+		this.proctimeAttribute = proctimeAttribute;
+		this.rowtimeAttributeDescriptors = rowtimeAttributeDescriptors;
 		this.selectFields = selectFields;
 
-		final DataType[] schemaDataTypes = schema.getFieldDataTypes();
-		final String[] schemaFieldNames = schema.getFieldNames();
+		final DataType[] schemaDataTypes = originSchema.getFieldDataTypes();
+		final String[] schemaFieldNames = originSchema.getFieldNames();
 		if (selectFields != null) {
 			DataType[] dataTypes = new DataType[selectFields.length];
 			String[] fieldNames = new String[selectFields.length];
@@ -89,7 +127,7 @@ public class JdbcTableSource implements
 			this.producedDataType =
 					TableSchema.builder().fields(fieldNames, dataTypes).build().toRowDataType();
 		} else {
-			this.producedDataType = schema.toRowDataType();
+			this.producedDataType = originSchema.toRowDataType();
 		}
 	}
 
@@ -100,23 +138,30 @@ public class JdbcTableSource implements
 
 	@Override
 	public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
-		return execEnv
-				.createInput(
-						getInputFormat(),
-						(RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType))
+		RowTypeInfo typeInfo = (RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType);
+		if (readOptions.getIncreaseColumn().isPresent()) {
+			return execEnv.addSource(new JdbcSourceFunction(getInputFormat(), typeInfo.getArity()))
+				.returns((TypeInformation) typeInfo)
 				.name(explainSource());
+		} else {
+			return execEnv.createInput(
+				getInputFormat(),
+				typeInfo)
+				.name(explainSource());
+		}
 	}
 
 	@Override
 	public TableFunction<Row> getLookupFunction(String[] lookupKeys) {
 		final RowTypeInfo rowTypeInfo = (RowTypeInfo) fromDataTypeToLegacyInfo(producedDataType);
-		return JdbcLookupFunction.builder()
-				.setOptions(options)
-				.setLookupOptions(lookupOptions)
-				.setFieldTypes(rowTypeInfo.getFieldTypes())
-				.setFieldNames(rowTypeInfo.getFieldNames())
-				.setKeyNames(lookupKeys)
-				.build();
+		return new SyncLookupTableFunction(lookupOptions,
+			new JdbcDataFetcher(
+				options,
+				lookupOptions,
+				rowTypeInfo.getFieldNames(),
+				rowTypeInfo.getFieldTypes(),
+				lookupKeys,
+				readOptions.getFetchSize()));
 	}
 
 	@Override
@@ -126,22 +171,60 @@ public class JdbcTableSource implements
 
 	@Override
 	public TableSource<Row> projectFields(int[] fields) {
-		return new JdbcTableSource(options, readOptions, lookupOptions, schema, fields);
+		return new JdbcTableSource(
+			options, readOptions, lookupOptions,
+			schema, originSchema, fieldMapping,
+			proctimeAttribute, rowtimeAttributeDescriptors, fields);
 	}
 
 	@Override
 	public AsyncTableFunction<Row> getAsyncLookupFunction(String[] lookupKeys) {
-		throw new UnsupportedOperationException();
+		RowTypeInfo rowTypeInfo = (RowTypeInfo) fromDataTypeToLegacyInfo(getProducedDataType());
+		return new AsyncLookupTableFunction(lookupOptions,
+			new JdbcDataFetcher(
+				options,
+				lookupOptions,
+				rowTypeInfo.getFieldNames(),
+				rowTypeInfo.getFieldTypes(),
+				lookupKeys,
+				readOptions.getFetchSize()));
 	}
 
 	@Override
 	public boolean isAsyncEnabled() {
-		return false;
+		return lookupOptions.isAsyncEnabled();
+	}
+
+	@Override
+	public CacheStrategy[] supportedCacheStrategies() {
+		return new CacheStrategy[] {CacheStrategy.ALL, CacheStrategy.LRU, CacheStrategy.NONE};
+	}
+
+	@Override
+	public LookupOptions getLookupOptions() {
+		return lookupOptions;
 	}
 
 	@Override
 	public TableSchema getTableSchema() {
 		return schema;
+	}
+
+	@Nullable
+	@Override
+	public String getProctimeAttribute() {
+		return proctimeAttribute;
+	}
+
+	@Override
+	public List<RowtimeAttributeDescriptor> getRowtimeAttributeDescriptors() {
+		return rowtimeAttributeDescriptors;
+	}
+
+	@Nullable
+	@Override
+	public Map<String, String> getFieldMapping() {
+		return fieldMapping;
 	}
 
 	@Override
@@ -159,6 +242,8 @@ public class JdbcTableSource implements
 		JdbcInputFormat.JdbcInputFormatBuilder builder = JdbcInputFormat.buildJdbcInputFormat()
 				.setDrivername(options.getDriverName())
 				.setDBUrl(options.getDbURL())
+				.setIncreaseColumn(readOptions.getIncreaseColumn().isPresent()
+					? readOptions.getIncreaseColumn().get() : null)
 				.setRowTypeInfo(new RowTypeInfo(rowTypeInfo.getFieldTypes(), rowTypeInfo.getFieldNames()));
 		options.getUsername().ifPresent(builder::setUsername);
 		options.getPassword().ifPresent(builder::setPassword);
@@ -194,14 +279,27 @@ public class JdbcTableSource implements
 	public boolean equals(Object o) {
 		if (o instanceof JdbcTableSource) {
 			JdbcTableSource source = (JdbcTableSource) o;
-			return Objects.equals(options, source.options) &&
-				Objects.equals(readOptions, source.readOptions) &&
-				Objects.equals(lookupOptions, source.lookupOptions) &&
-				Objects.equals(schema, source.schema) &&
-				Arrays.equals(selectFields, source.selectFields);
+			return Objects.equals(options, source.options)
+				&& Objects.equals(readOptions, source.readOptions)
+				&& Objects.equals(lookupOptions, source.lookupOptions)
+				&& Objects.equals(schema, source.schema)
+				&& Objects.equals(originSchema, source.originSchema)
+				&& Arrays.equals(selectFields, source.selectFields)
+				&& Objects.equals(proctimeAttribute, source.proctimeAttribute)
+				&& Objects.equals(rowtimeAttributeDescriptors, source.rowtimeAttributeDescriptors)
+				&& Objects.equals(fieldMapping, source.fieldMapping);
 		} else {
 			return false;
 		}
+	}
+
+	@Override
+	public int hashCode() {
+		int result = Objects.hash(options, readOptions,
+			lookupOptions, schema, originSchema, proctimeAttribute,
+			rowtimeAttributeDescriptors, fieldMapping, producedDataType);
+		result = 31 * result + Arrays.hashCode(selectFields);
+		return result;
 	}
 
 	/**
@@ -211,8 +309,12 @@ public class JdbcTableSource implements
 
 		private JdbcOptions options;
 		private JdbcReadOptions readOptions;
-		private JdbcLookupOptions lookupOptions;
+		private LookupOptions lookupOptions;
 		protected TableSchema schema;
+		private TableSchema originSchema;
+		private String proctimeAttribute;
+		private List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors = Collections.emptyList();
+		private Map<String, String> fieldMapping;
 
 		/**
 		 * required, jdbc options.
@@ -233,9 +335,9 @@ public class JdbcTableSource implements
 
 		/**
 		 * optional, lookup related options.
-		 * {@link JdbcLookupOptions} only be used for {@link LookupableTableSource}.
+		 * {@link LookupOptions} only be used for {@link LookupableTableSource}.
 		 */
-		public Builder setLookupOptions(JdbcLookupOptions lookupOptions) {
+		public Builder setLookupOptions(LookupOptions lookupOptions) {
 			this.lookupOptions = lookupOptions;
 			return this;
 		}
@@ -245,6 +347,30 @@ public class JdbcTableSource implements
 		 */
 		public Builder setSchema(TableSchema schema) {
 			this.schema = JdbcTypeUtil.normalizeTableSchema(schema);
+			return this;
+		}
+
+		/**
+		 * required, table schema of this table source.
+		 */
+		public Builder setOriginSchema(TableSchema schema) {
+			this.originSchema = JdbcTypeUtil.normalizeTableSchema(schema);
+			return this;
+		}
+
+		public Builder setProctimeAttribute(String proctimeAttribute) {
+			this.proctimeAttribute = proctimeAttribute;
+			return this;
+		}
+
+		public Builder setRowtimeAttributeDescriptors(
+			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors) {
+			this.rowtimeAttributeDescriptors = rowtimeAttributeDescriptors;
+			return this;
+		}
+
+		public Builder setFieldMapping(Map<String, String> fieldMapping) {
+			this.fieldMapping = fieldMapping;
 			return this;
 		}
 
@@ -260,9 +386,13 @@ public class JdbcTableSource implements
 				readOptions = JdbcReadOptions.builder().build();
 			}
 			if (lookupOptions == null) {
-				lookupOptions = JdbcLookupOptions.builder().build();
+				lookupOptions = LookupOptions.builder().build();
 			}
-			return new JdbcTableSource(options, readOptions, lookupOptions, schema);
+			if (originSchema == null) {
+				originSchema = schema;
+			}
+			return new JdbcTableSource(options, readOptions, lookupOptions, schema,
+				originSchema, fieldMapping, proctimeAttribute, rowtimeAttributeDescriptors);
 		}
 	}
 }

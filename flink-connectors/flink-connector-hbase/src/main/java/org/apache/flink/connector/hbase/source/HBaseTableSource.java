@@ -33,6 +33,8 @@ import org.apache.flink.table.sources.BatchTableSource;
 import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.sources.ProjectableTableSource;
 import org.apache.flink.table.sources.StreamTableSource;
+import org.apache.flink.table.sources.lookup.LookupOptions;
+import org.apache.flink.table.sources.lookup.cache.CacheStrategy;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -175,6 +177,16 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 	@Override
 	public boolean isAsyncEnabled() {
 		return false;
+	}
+
+	@Override
+	public CacheStrategy[] supportedCacheStrategies() {
+		return new CacheStrategy[] {CacheStrategy.NONE};
+	}
+
+	@Override
+	public LookupOptions getLookupOptions() {
+		return null;
 	}
 
 	@Override

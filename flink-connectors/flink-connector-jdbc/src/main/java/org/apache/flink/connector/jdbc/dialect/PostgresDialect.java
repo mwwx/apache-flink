@@ -45,6 +45,8 @@ public class PostgresDialect extends AbstractDialect {
 	private static final int MAX_DECIMAL_PRECISION = 1000;
 	private static final int MIN_DECIMAL_PRECISION = 1;
 
+	private boolean isQuoting = false;
+
 	@Override
 	public boolean canHandle(String url) {
 		return url.startsWith("jdbc:postgresql:");
@@ -58,6 +60,16 @@ public class PostgresDialect extends AbstractDialect {
 	@Override
 	public Optional<String> defaultDriverName() {
 		return Optional.of("org.postgresql.Driver");
+	}
+
+	@Override
+	public boolean isQuoting() {
+		return isQuoting;
+	}
+
+	@Override
+	public void setQuoting(boolean quoting) {
+		this.isQuoting = quoting;
 	}
 
 	/**
@@ -75,11 +87,6 @@ public class PostgresDialect extends AbstractDialect {
 			" ON CONFLICT (" + uniqueColumns + ")" +
 			" DO UPDATE SET " + updateClause
 		);
-	}
-
-	@Override
-	public String quoteIdentifier(String identifier) {
-		return identifier;
 	}
 
 	@Override

@@ -21,7 +21,6 @@ package org.apache.flink.connector.jdbc.table;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcReadOptions;
 import org.apache.flink.table.api.DataTypes;
@@ -31,6 +30,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.sources.lookup.LookupOptions;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Test;
@@ -44,7 +44,7 @@ import static org.junit.Assert.fail;
 
 /**
  * Test for {@link JdbcTableSource} and {@link JdbcUpsertTableSink} created
- * by {@link JdbcTableSourceSinkFactory}.
+ * by {@link JdbcUpRetractTableSinkFactory}.
  */
 public class JdbcDynamicTableFactoryTest {
 
@@ -73,9 +73,9 @@ public class JdbcDynamicTableFactoryTest {
 			.setUsername("user")
 			.setPassword("pass")
 			.build();
-		JdbcLookupOptions lookupOptions = JdbcLookupOptions.builder()
-			.setCacheMaxSize(-1)
-			.setCacheExpireMs(10_000)
+		LookupOptions lookupOptions = LookupOptions.builder()
+			.setCacheSize(-1)
+			.setCacheTTLMs(10_000)
 			.setMaxRetryTimes(3)
 			.build();
 		JdbcDynamicTableSource expectedSource = new JdbcDynamicTableSource(
@@ -129,9 +129,9 @@ public class JdbcDynamicTableFactoryTest {
 			.setNumPartitions(10)
 			.setFetchSize(20)
 			.build();
-		JdbcLookupOptions lookupOptions = JdbcLookupOptions.builder()
-			.setCacheMaxSize(-1)
-			.setCacheExpireMs(10_000)
+		LookupOptions lookupOptions = LookupOptions.builder()
+			.setCacheSize(-1)
+			.setCacheTTLMs(10_000)
 			.setMaxRetryTimes(3)
 			.build();
 		JdbcDynamicTableSource expected = new JdbcDynamicTableSource(
@@ -156,9 +156,9 @@ public class JdbcDynamicTableFactoryTest {
 			.setDBUrl("jdbc:derby:memory:mydb")
 			.setTableName("mytable")
 			.build();
-		JdbcLookupOptions lookupOptions = JdbcLookupOptions.builder()
-			.setCacheMaxSize(1000)
-			.setCacheExpireMs(10_000)
+		LookupOptions lookupOptions = LookupOptions.builder()
+			.setCacheSize(1000)
+			.setCacheTTLMs(10_000)
 			.setMaxRetryTimes(10)
 			.build();
 		JdbcDynamicTableSource expected = new JdbcDynamicTableSource(

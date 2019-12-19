@@ -33,17 +33,23 @@ import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.sources._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.EncodingUtils
-
+import org.apache.flink.table.types.logical.{IntType, TimestampType, VarCharType}
+import org.apache.flink.types.Row
 import org.junit.Assert.{assertTrue, fail}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Test}
-
 import _root_.java.lang.{Boolean => JBoolean}
+import _root_.java.lang.{Long => JLong}
 import _root_.java.sql.Timestamp
 import _root_.java.util
 import _root_.java.util.{ArrayList => JArrayList, Collection => JCollection, HashMap => JHashMap, List => JList, Map => JMap}
+import java.time.LocalDateTime
 
+import org.apache.flink.table.sources.lookup.LookupOptions
+import org.apache.flink.table.sources.lookup.cache.CacheStrategy
+
+import _root_.scala.annotation.varargs
 import _root_.scala.collection.JavaConversions._
 
 /**
@@ -524,6 +530,10 @@ class TestTemporalTable(bounded: Boolean = false)
   override def getProducedDataType: DataType = TestTemporalTable.tableSchema.toRowDataType
 
   override def getTableSchema: TableSchema = TestTemporalTable.tableSchema
+
+  override def supportedCacheStrategies(): Array[CacheStrategy] = Array(CacheStrategy.ALL)
+
+  override def getLookupOptions: LookupOptions = null
 }
 
 object TestTemporalTable {
@@ -534,9 +544,9 @@ object TestTemporalTable {
     .build()
 
   def createTemporaryTable(
-      tEnv: TableEnvironment,
-      tableName: String,
-      isBounded: Boolean = false): Unit = {
+  tEnv: TableEnvironment,
+  tableName: String,
+  isBounded: Boolean = false): Unit = {
     val desc = new CustomConnectorDescriptor("TestTemporalTable", 1, false)
     if (isBounded) {
       desc.property("is-bounded", "true")
@@ -597,13 +607,29 @@ class TestInvalidTemporalTable private(
     asyncFetcher.asInstanceOf[AsyncTableFunction[RowData]]
   }
 
+  override def isAsyncEnabled: Boolean = async
+
+  override def getLookupOptions: LookupOptions = null
+
+  override def supportedCacheStrategies(): Array[CacheStrategy] = Array(CacheStrategy.ALL)
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[RowData] = {
     throw new UnsupportedOperationException("This TableSource is only used for unit test, " +
       "this method should never be called.")
   }
+}
 
-  override def isAsyncEnabled: Boolean = async
+@SerialVersionUID(1L)
+class InvalidTableFunctionResultType extends TableFunction[String] {
+  @varargs
+  def eval(obj: AnyRef*): Unit = {
+  }
+}
+
+@SerialVersionUID(1L)
+class InvalidTableFunctionEvalSignature1 extends TableFunction[RowData] {
+  def eval(a: Integer, b: String, c: LocalDateTime): Unit = {
+  }
 }
 
 object TestInvalidTemporalTable {

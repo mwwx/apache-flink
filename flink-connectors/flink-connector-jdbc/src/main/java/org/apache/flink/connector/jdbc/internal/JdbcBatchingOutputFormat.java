@@ -31,7 +31,6 @@ import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.utils.JdbcUtils;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -313,26 +312,53 @@ public class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStat
 		public JdbcBatchingOutputFormat<Tuple2<Boolean, Row>, Row, JdbcBatchStatementExecutor<Row>> build() {
 			checkNotNull(options, "No options supplied.");
 			checkNotNull(fieldNames, "No fieldNames supplied.");
-			JdbcDmlOptions dml = JdbcDmlOptions.builder()
-				.withTableName(options.getTableName()).withDialect(options.getDialect())
-				.withFieldNames(fieldNames).withKeyFields(keyFields).withFieldTypes(fieldTypes).build();
+			JdbcDmlOptions dml = JdbcDmlOptions
+				.builder()
+				.withTableName(options.getTableName())
+				.withDialect(options.getDialect())
+				.withFieldNames(fieldNames)
+				.withKeyFields(keyFields)
+				.withFieldTypes(fieldTypes)
+				.build();
+
 			if (dml.getKeyFields().isPresent() && dml.getKeyFields().get().length > 0) {
 				return new TableJdbcUpsertOutputFormat(
 					new SimpleJdbcConnectionProvider(options),
 					dml,
 					executionOptionsBuilder.build());
 			} else {
-				// warn: don't close over builder fields
-				String sql = options.getDialect().getInsertIntoStatement(dml.getTableName(), dml.getFieldNames());
-				return new JdbcBatchingOutputFormat<>(
+				return new TableJdbcRetractOutputFormat(
 					new SimpleJdbcConnectionProvider(options),
-					executionOptionsBuilder.build(),
-					ctx -> createSimpleRowExecutor(sql, dml.getFieldTypes(), ctx.getExecutionConfig().isObjectReuseEnabled()),
-					tuple2 -> {
-						Preconditions.checkArgument(tuple2.f0);
-						return tuple2.f1;
-					});
+					dml,
+					executionOptionsBuilder.build());
 			}
+		}
+
+
+		/**
+		 * Finalizes the configuration and checks validity.
+		 *
+		 * @return Configured JdbcAppendOutputFormat
+		 */
+		public JdbcBatchingOutputFormat<Row, Row, JdbcBatchStatementExecutor<Row>> buildAppend() {
+			checkNotNull(options, "No options supplied.");
+			checkNotNull(fieldNames, "No fieldNames supplied.");
+			JdbcDmlOptions dml = JdbcDmlOptions
+				.builder()
+				.withTableName(options.getTableName())
+				.withDialect(options.getDialect())
+				.withFieldNames(fieldNames).build();
+
+			// warn: don't close over builder fields
+			String sql = options
+				.getDialect()
+				.getInsertIntoStatement(dml.getTableName(), dml.getFieldNames());
+
+			return new JdbcBatchingOutputFormat<>(
+				new SimpleJdbcConnectionProvider(options),
+				executionOptionsBuilder.build(),
+				ctx -> createSimpleRowExecutor(sql, dml.getFieldTypes(), ctx.getExecutionConfig().isObjectReuseEnabled()),
+				row -> row);
 		}
 	}
 

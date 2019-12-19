@@ -1227,6 +1227,11 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	private boolean transitionState(JobStatus current, JobStatus newState, Throwable error) {
 		assertRunningInJobMasterMainThread();
+		// put ldb logkeeper prefix
+		/*int index = jobInformation.getJobName().indexOf(':');
+		String logPrefix = index > -1 ? jobInformation.getJobName()
+			.substring(0, index) : jobInformation.getJobName();
+		MDC.put("tag",  logPrefix);*/
 		// consistency check
 		if (current.isTerminalState()) {
 			String message = "Job is trying to leave terminal state " + current;
