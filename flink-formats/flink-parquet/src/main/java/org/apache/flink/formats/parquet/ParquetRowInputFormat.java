@@ -21,6 +21,7 @@ package org.apache.flink.formats.parquet;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.Row;
 
@@ -31,14 +32,22 @@ import org.apache.parquet.schema.MessageType;
  */
 public class ParquetRowInputFormat extends ParquetInputFormat<Row> implements ResultTypeQueryable<Row> {
 	private static final long serialVersionUID = 11L;
+	private RowTypeInfo returnType;
 
 	public ParquetRowInputFormat(Path path, MessageType messageType) {
 		super(path, messageType);
+		this.returnType = new RowTypeInfo(getFieldTypes(), getFieldNames());
+	}
+
+	@Override
+	public boolean acceptFile(FileStatus fileStatus) {
+		final String name = fileStatus.getPath().getName();
+		return fileStatus.isDir() || name.endsWith(".parquet") || name.endsWith(".parquet".toUpperCase());
 	}
 
 	@Override
 	public TypeInformation<Row> getProducedType() {
-		return new RowTypeInfo(getFieldTypes(), getFieldNames());
+		return returnType;
 	}
 
 	@Override

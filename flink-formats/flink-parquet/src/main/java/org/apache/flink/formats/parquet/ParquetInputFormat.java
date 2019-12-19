@@ -26,6 +26,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.core.fs.FileStatus;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.utils.ParquetRecordReader;
 import org.apache.flink.formats.parquet.utils.ParquetSchemaConverter;
@@ -183,6 +185,35 @@ public abstract class ParquetInputFormat<E>
 
 			LOG.debug(String.format("Open ParquetInputFormat with FileInputSplit [%s]", split.getPath().toString()));
 		}
+	}
+
+	public static MessageType readMessageType(org.apache.flink.core.fs.Path path) throws IOException {
+		final FileSystem fs = FileSystem.get(path.toUri());
+		final FileStatus file = fs.getFileStatus(path);
+		if (file.isDir()) {
+			for (FileStatus dir : fs.listStatus(path)) {
+				MessageType type = readMessageType(dir.getPath());
+				if (type != null) {
+					return type;
+				}
+			}
+		} else {
+			String fileExtension = extractFileExtension(path.getName());
+			if ("parquet".equalsIgnoreCase(fileExtension)) {
+				return readParquetFileMessageType(path);
+			}
+		}
+		return null;
+	}
+
+	public static MessageType readParquetFileMessageType(org.apache.flink.core.fs.Path file) throws IOException {
+		ParquetReadOptions options = ParquetReadOptions.builder().build();
+		org.apache.hadoop.conf.Configuration configuration = new org.apache.hadoop.conf.Configuration();
+		InputFile inputFile =
+			HadoopInputFile.fromPath(new org.apache.hadoop.fs.Path(file.toUri()), configuration);
+		ParquetFileReader fileReader = new ParquetFileReader(inputFile, options);
+		MessageType fileSchema = fileReader.getFileMetaData().getSchema();
+		return fileSchema;
 	}
 
 	@Override
