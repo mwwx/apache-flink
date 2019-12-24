@@ -154,7 +154,7 @@ public class MetricDumpSerialization {
 				try {
 					serializeCounter(countersBuffer, entry.getValue().f0, entry.getValue().f1, entry.getKey());
 					numCounters++;
-				} catch (Exception e) {
+				} catch (Throwable e) {
 					LOG.debug("Failed to serialize counter.", e);
 				}
 			}
@@ -165,7 +165,7 @@ public class MetricDumpSerialization {
 				try {
 					serializeGauge(gaugesBuffer, entry.getValue().f0, entry.getValue().f1, entry.getKey());
 					numGauges++;
-				} catch (Exception e) {
+				} catch (Throwable e) {
 					LOG.debug("Failed to serialize gauge.", e);
 				}
 			}
@@ -176,7 +176,7 @@ public class MetricDumpSerialization {
 				try {
 					serializeHistogram(histogramsBuffer, entry.getValue().f0, entry.getValue().f1, entry.getKey());
 					numHistograms++;
-				} catch (Exception e) {
+				} catch (Throwable e) {
 					LOG.debug("Failed to serialize histogram.", e);
 				}
 			}
@@ -187,7 +187,7 @@ public class MetricDumpSerialization {
 				try {
 					serializeMeter(metersBuffer, entry.getValue().f0, entry.getValue().f1, entry.getKey());
 					numMeters++;
-				} catch (Exception e) {
+				} catch (Throwable e) {
 					LOG.debug("Failed to serialize meter.", e);
 				}
 			}
