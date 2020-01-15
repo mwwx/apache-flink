@@ -36,6 +36,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Arra
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.TextNode;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Array;
@@ -61,8 +64,7 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
-import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIMESTAMP_FORMAT;
-import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIME_FORMAT;
+import static org.apache.flink.formats.json.TimeFormats.*;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -79,10 +81,18 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 
 	private static final long serialVersionUID = -228294330688809195L;
 
+	private static final Logger logger = LoggerFactory.getLogger(JsonRowDeserializationSchema.class);
+
 	/** Type information describing the result type. */
 	private final RowTypeInfo typeInfo;
 
 	private boolean failOnMissingField;
+
+	private String[] originNames;
+
+	private String ignoreErrorLogTag;
+
+	private String lobLocation;
 
 	/** Object mapper for parsing the JSON. */
 	private final ObjectMapper objectMapper = new ObjectMapper();
@@ -134,11 +144,25 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		this.runtimeConverter = createConverter(this.typeInfo);
 	}
 
+	/**
+	 * Setter for property 'originNames'.
+	 *
+	 * @param originNames Value to set for property 'originNames'.
+	 */
+	public void setOriginNames(String[] originNames) {
+		if (originNames == null || originNames.length != typeInfo.getArity()) {
+			throw new IllegalArgumentException("origin name not equal to type filed num expected.");
+		}
+		this.originNames = originNames;
+		this.runtimeConverter = createConverter(typeInfo);
+	}
+
 	@Override
 	public Row deserialize(byte[] message) throws IOException {
+		JsonNode node = null;
 		try {
-			final JsonNode root = objectMapper.readTree(message);
-			return (Row) runtimeConverter.convert(objectMapper, root);
+			node = objectMapper.readTree(message);
+			return (Row) runtimeConverter.convert(objectMapper, node);
 		} catch (Throwable t) {
 			if (ignoreParseErrors) {
 				return null;
@@ -165,6 +189,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		private final RowTypeInfo typeInfo;
 		private boolean failOnMissingField = false;
 		private boolean ignoreParseErrors = false;
+		private String[] originNames;
 
 		/**
 		 * Creates a JSON deserialization schema for the given type information.
@@ -209,7 +234,22 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		}
 
 		public JsonRowDeserializationSchema build() {
-			return new JsonRowDeserializationSchema(typeInfo, failOnMissingField, ignoreParseErrors);
+			JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(
+				typeInfo, failOnMissingField, ignoreParseErrors);
+			if (originNames != null) {
+				deserializationSchema.setOriginNames(originNames);
+			}
+			return deserializationSchema;
+		}
+
+		public Builder setOriginNames(String[] originNames) {
+			this.originNames = originNames;
+			return this;
+		}
+
+		public Builder setIgnoreParseErrors(Boolean ignore) {
+			this.ignoreParseErrors = ignore;
+			return this;
 		}
 	}
 
@@ -325,8 +365,8 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		List<DeserializationRuntimeConverter> fieldConverters = Arrays.stream(typeInfo.getFieldTypes())
 			.map(this::createConverter)
 			.collect(Collectors.toList());
-
-		return assembleRowConverter(typeInfo.getFieldNames(), fieldConverters);
+		final String[] names = this.originNames == null ? typeInfo.getFieldNames() : this.originNames;
+		return assembleRowConverter(names, fieldConverters);
 	}
 
 	private DeserializationRuntimeConverter createFallbackConverter(Class<?> valueType) {
@@ -447,7 +487,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		// according to RFC 3339 every date-time must have a timezone;
 		// until we have full timezone support, we only support UTC;
 		// users can parse their time as string as a workaround
-		TemporalAccessor parsedTimestamp = RFC3339_TIMESTAMP_FORMAT.parse(jsonNode.asText());
+		TemporalAccessor parsedTimestamp = SIMPLE_TIMESTAMP_FORMAT.parse(jsonNode.asText());
 
 		ZoneOffset zoneOffset = parsedTimestamp.query(TemporalQueries.offset());
 
@@ -472,7 +512,8 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		// until we have full timezone support, we only support UTC;
 		// users can parse their time as string as a workaround
 
-		TemporalAccessor parsedTime = RFC3339_TIME_FORMAT.parse(jsonNode.asText());
+		// TemporalAccessor parsedTime = RFC3339_TIME_FORMAT.parse(jsonNode.asText());
+		TemporalAccessor parsedTime = SIMPLE_TIME_FORMAT.parse(jsonNode.asText());
 
 		ZoneOffset zoneOffset = parsedTime.query(TemporalQueries.offset());
 		LocalTime localTime = parsedTime.query(TemporalQueries.localTime());
