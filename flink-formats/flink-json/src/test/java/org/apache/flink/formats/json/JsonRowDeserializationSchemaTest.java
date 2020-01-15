@@ -45,6 +45,8 @@ import java.util.concurrent.ThreadLocalRandom;
 import static org.apache.flink.formats.utils.DeserializationSchemaMatcher.whenDeserializedWith;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.internal.matchers.ThrowableCauseMatcher.hasCause;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
@@ -191,6 +193,38 @@ public class JsonRowDeserializationSchemaTest {
 		assertThat(serializedJson, whenDeserializedWith(deserializationSchema).equalsTo(expected));
 	}
 
+	@Test
+	public void testIgnoreDeserialization() throws Exception {
+		long id = 1238123899121L;
+		String name = "asdlkjasjkdla998y1122";
+		byte[] bytes = new byte[1024];
+		ThreadLocalRandom.current().nextBytes(bytes);
+
+		ObjectMapper objectMapper = new ObjectMapper();
+
+		// Root
+		ObjectNode root = objectMapper.createObjectNode();
+		root.put("id", id);
+		root.put("Name", name);
+		root.put("BYTES", bytes);
+
+		byte[] serializedJson = objectMapper.writeValueAsBytes(root);
+
+		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(
+			Types.ROW_NAMED(
+				new String[] { "id", "name", "bytes" },
+				Types.LONG, Types.STRING, Types.PRIMITIVE_ARRAY(Types.BYTE))
+		);
+		deserializationSchema.setOriginNames(new String[] { "id", "Name", "BYTES" });
+
+		Row deserialized = deserializationSchema.deserialize(serializedJson);
+
+		assertEquals(3, deserialized.getArity());
+		assertEquals(id, deserialized.getField(0));
+		assertEquals(name, deserialized.getField(1));
+		assertArrayEquals(bytes, (byte[]) deserialized.getField(2));
+	}
+
 	/**
 	 * Tests deserialization with non-existing field name.
 	 */
@@ -236,6 +270,33 @@ public class JsonRowDeserializationSchemaTest {
 			.failOnMissingField()
 			.ignoreParseErrors()
 			.build();
+	}
+
+	@Test
+	public void testIgnoreParseErrors() throws Exception {
+		ObjectMapper objectMapper = new ObjectMapper();
+
+		// Root
+		ObjectNode root = objectMapper.createObjectNode();
+		root.put("id", "asd");
+		byte[] serializedJson = objectMapper.writeValueAsBytes(root);
+
+		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema
+			.Builder(Types.ROW_NAMED(new String[] { "id" }, Types.SQL_DATE))
+			.build();
+
+		try {
+			deserializationSchema.deserialize(serializedJson);
+			Assert.fail("Did not throw expected Exception");
+		} catch (Exception e) {
+			//excepted
+		}
+
+		root = objectMapper.createObjectNode();
+		root.put("id", "2020-01-01");
+		serializedJson = objectMapper.writeValueAsBytes(root);
+		Row row = deserializationSchema.deserialize(serializedJson);
+		Assert.assertNotNull(row);
 	}
 
 	/**

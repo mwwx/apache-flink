@@ -79,6 +79,65 @@ public class JsonRowFormatFactoryTest extends TestLogger {
 		testSchemaDeserializationSchema(properties);
 	}
 
+	@Test(expected = IllegalArgumentException.class)
+	public void testIgnoreCaseError() {
+		final Map<String, String> properties = toMap(
+			new Schema()
+				.field("field1", Types.BOOLEAN())
+				.field("field2", Types.INT())
+				.field("proctime", Types.SQL_TIMESTAMP()).proctime(),
+			new Json()
+				.deriveSchema()
+				.originSchema("field1,field2,proctime"));
+
+		testSchemaSerializationSchema(properties);
+
+		testSchemaDeserializationSchema(properties);
+	}
+
+	@Test
+	public void testIgnoreCase() {
+		final Map<String, String> properties = toMap(
+			new Json()
+				.schema(SCHEMA)
+				.originSchema("field1,Field2"));
+
+		testSchemaDeserializationSchemaWithIgnore(properties);
+	}
+
+	@Test
+	public void testSchemaIgnoreParserError() throws Exception {
+		final Map<String, String> properties = toMap(
+			new Json()
+				.schema(SCHEMA)
+				.failOnMissingField(false)
+				.ignoreParseErrors(true));
+
+		testSchemaDeserializationSchemaLog(properties);
+	}
+
+	private void testSchemaDeserializationSchemaLog(Map<String, String> properties) {
+		final DeserializationSchema<?> actual2 = TableFactoryService
+			.find(DeserializationSchemaFactory.class, properties)
+			.createDeserializationSchema(properties);
+		final JsonRowDeserializationSchema expected2 = new JsonRowDeserializationSchema
+			.Builder(SCHEMA)
+			.ignoreParseErrors()
+			.build();
+
+		assertEquals(expected2, actual2);
+	}
+
+	private void testSchemaDeserializationSchemaWithIgnore(Map<String, String> properties) {
+		final DeserializationSchema<?> actual2 = TableFactoryService
+			.find(DeserializationSchemaFactory.class, properties)
+			.createDeserializationSchema(properties);
+		final JsonRowDeserializationSchema expected2 = new JsonRowDeserializationSchema(SCHEMA);
+		expected2.setOriginNames(new String[]{"field1", "field2"});
+		expected2.setFailOnMissingField(false);
+		assertEquals(expected2, actual2);
+	}
+
 	@Test
 	public void testJsonSchema() {
 		final Map<String, String> properties = toMap(

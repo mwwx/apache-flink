@@ -19,8 +19,12 @@
 package org.apache.flink.table.descriptors;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.formats.json.vo.LobLocationVO;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.ValidationException;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.Test;
 
@@ -70,6 +74,23 @@ public class JsonTest extends DescriptorTestBase {
 		addPropertyAndVerify(descriptors().get(0), "format.ignore-parse-errors", "DDD");
 	}
 
+	@Test
+	public void testIgnoreCase() {
+		addPropertyAndVerify(descriptors().get(4), "format.schema-origin", "test1,test2");
+	}
+
+	@Test
+	public void testIgnoreCaseError() {
+		addPropertyAndVerify(descriptors().get(5), "format.schema-origin", "test1,test2,test3");
+	}
+
+	@Test
+	public void testIgnoreCaseLogTag() throws JsonProcessingException {
+		addPropertyAndVerify(descriptors().get(6), "format.ignore-parse-errors-log-tag", "2344:3434");
+		String lobLocation = new ObjectMapper().writeValueAsString(new LobLocationVO(1));
+		addPropertyAndVerify(descriptors().get(6), "format.ignore-parse-errors-log-info", lobLocation);
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	@Override
@@ -93,7 +114,32 @@ public class JsonTest extends DescriptorTestBase {
 
 		final Descriptor desc7 = new Json().ignoreParseErrors(true);
 
-		return Arrays.asList(desc1, desc2, desc3, desc4, desc5, desc6, desc7);
+		final Descriptor desc8 = new Json().schema(
+			Types.ROW(
+				new String[]{"test1", "test2"},
+				new TypeInformation[]{Types.STRING(), Types.SQL_TIMESTAMP()}))
+			.failOnMissingField(true).originSchema("test1,test2");
+
+		final Descriptor desc9 = new Json().schema(
+			Types.ROW(
+				new String[]{"test1", "test2"},
+				new TypeInformation[]{Types.STRING(), Types.SQL_TIMESTAMP()}))
+			.failOnMissingField(true).originSchema("test1,test2,test3");
+
+		String lobLocation = null;
+		try {
+			lobLocation = new ObjectMapper().writeValueAsString(new LobLocationVO(1));
+		} catch (JsonProcessingException e) {
+			e.printStackTrace();
+		}
+		final Descriptor desc10 = new Json().schema(
+			Types.ROW(
+				new String[]{"test1", "test2"},
+				new TypeInformation[]{Types.STRING(), Types.SQL_TIMESTAMP()}))
+			.ignoreParseErrors(true);
+
+		return Arrays.asList(desc1, desc2, desc3, desc4,
+			desc5, desc6, desc7, desc8, desc9, desc10);
 	}
 
 	@Override
@@ -136,7 +182,35 @@ public class JsonTest extends DescriptorTestBase {
 		props7.put("format.property-version", "1");
 		props7.put("format.ignore-parse-errors", "true");
 
-		return Arrays.asList(props1, props2, props3, props4, props5, props6, props7);
+		final Map<String, String> props8 = new HashMap<>();
+		props8.put("format.schema", "ROW<test1 VARCHAR, test2 TIMESTAMP>");
+		props8.put("format.fail-on-missing-field", "true");
+		props8.put("format.schema-origin", "test1,test2");
+
+		final Map<String, String> props9 = new HashMap<>();
+		props9.put("format.type", "json");
+		props9.put("format.property-version", "1");
+		props9.put("format.schema", "ROW<test1 VARCHAR, test2 TIMESTAMP>");
+		props9.put("format.fail-on-missing-field", "true");
+		props9.put("format.schema-origin", "test1,test2,test3");
+
+		String lobLocation = null;
+		try {
+			lobLocation = new ObjectMapper().writeValueAsString(new LobLocationVO(1));
+		} catch (JsonProcessingException e) {
+			e.printStackTrace();
+		}
+
+		final Map<String, String> props10 = new HashMap<>();
+		props10.put("format.type", "json");
+		props10.put("format.property-version", "1");
+		props10.put("format.schema", "ROW<test1 VARCHAR, test2 TIMESTAMP>");
+		props10.put("format.ignore-parse-errors", "true");
+		props10.put("format.ignore-parse-errors-log-tag", "2344:3434");
+		props10.put("format.ignore-parse-errors-log-info", lobLocation);
+
+		return Arrays.asList(props1, props2, props3, props4, props5,
+			props6, props7, props8, props9, props10);
 	}
 
 	@Override
