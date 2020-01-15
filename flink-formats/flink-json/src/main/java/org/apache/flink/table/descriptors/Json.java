@@ -30,6 +30,7 @@ import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_FAIL_ON_MI
 import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_IGNORE_PARSE_ERRORS;
 import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_JSON_SCHEMA;
 import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_SCHEMA;
+import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_SCHEMA_ORIGIN;
 import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_TYPE_VALUE;
 
 /**
@@ -37,9 +38,10 @@ import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_TYPE_VALUE
   */
 public class Json extends FormatDescriptor {
 
+	private String originSchema;
 	private Boolean failOnMissingField;
-	private Boolean deriveSchema;
 	private Boolean ignoreParseErrors;
+	private Boolean deriveSchema;
 	private String jsonSchema;
 	private String schema;
 
@@ -69,6 +71,16 @@ public class Json extends FormatDescriptor {
 	 */
 	public Json ignoreParseErrors(boolean ignoreParseErrors) {
 		this.ignoreParseErrors = ignoreParseErrors;
+		return this;
+	}
+
+	/**
+	 * Setter for property 'originSchema'.
+	 *
+	 * @param originSchema Value to set for property 'originSchema'.
+	 */
+	public Json originSchema(String originSchema) {
+		this.originSchema = originSchema;
 		return this;
 	}
 
@@ -149,12 +161,16 @@ public class Json extends FormatDescriptor {
 			properties.putString(FORMAT_SCHEMA, schema);
 		}
 
+		if (ignoreParseErrors != null) {
+			properties.putBoolean(FORMAT_IGNORE_PARSE_ERRORS, ignoreParseErrors);
+		}
+
 		if (failOnMissingField != null) {
 			properties.putBoolean(FORMAT_FAIL_ON_MISSING_FIELD, failOnMissingField);
 		}
 
-		if (ignoreParseErrors != null) {
-			properties.putBoolean(FORMAT_IGNORE_PARSE_ERRORS, ignoreParseErrors);
+		if (originSchema != null) {
+			properties.putString(FORMAT_SCHEMA_ORIGIN, originSchema);
 		}
 
 		return properties.asMap();

@@ -50,6 +50,8 @@ public class JsonRowFormatFactory extends TableFormatFactoryBase<Row>
 		properties.add(JsonValidator.FORMAT_JSON_SCHEMA);
 		properties.add(JsonValidator.FORMAT_SCHEMA);
 		properties.add(JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD);
+		properties.add(JsonValidator.FORMAT_IGNORE_PARSE_ERRORS);
+		properties.add(JsonValidator.FORMAT_SCHEMA_ORIGIN);
 		return properties;
 	}
 
@@ -73,6 +75,10 @@ public class JsonRowFormatFactory extends TableFormatFactoryBase<Row>
 					schema.ignoreParseErrors();
 				}
 			});
+
+		descriptorProperties.getOptionalString(JsonValidator.FORMAT_SCHEMA_ORIGIN)
+			.ifPresent(names -> schema.setOriginNames(names.split(",")));
+
 		return schema.build();
 	}
 
