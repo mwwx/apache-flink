@@ -194,6 +194,142 @@ public class JsonRowDeserializationSchemaTest {
 	}
 
 	@Test
+	public void testSchemaDeserializationWithoutZ() throws Exception {
+		final BigDecimal id = BigDecimal.valueOf(1238123899121L);
+		final String name = "asdlkjasjkdla998y1122";
+		final byte[] bytes = new byte[1024];
+		ThreadLocalRandom.current().nextBytes(bytes);
+		final BigDecimal[] numbers = new BigDecimal[] {
+			BigDecimal.valueOf(1), BigDecimal.valueOf(2), BigDecimal.valueOf(3)};
+		final String[] strings = new String[] {"one", "two", "three"};
+
+		final ObjectMapper objectMapper = new ObjectMapper();
+
+		// Root
+		ObjectNode root = objectMapper.createObjectNode();
+		root.put("id", id.longValue());
+		root.putNull("idOrNull");
+		root.put("name", name);
+		root.put("date", "1990-10-14");
+		root.put("time", "12:12:43");
+		root.put("timestamp", "1990-10-14T12:12:43");
+		root.put("bytes", bytes);
+		root.putArray("numbers").add(1).add(2).add(3);
+		root.putArray("strings").add("one").add("two").add("three");
+		root.putObject("nested").put("booleanField", true).put("decimalField", 12);
+
+		final byte[] serializedJson = objectMapper.writeValueAsBytes(root);
+
+		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema.Builder(
+			"{" +
+				"    type: 'object'," +
+				"    properties: {" +
+				"         id: { type: 'integer' }," +
+				"         idOrNull: { type: ['integer', 'null'] }," +
+				"         name: { type: 'string' }," +
+				"         date: { type: 'string', format: 'date' }," +
+				"         time: { type: 'string', format: 'time' }," +
+				"         timestamp: { type: 'string', format: 'date-time' }," +
+				"         bytes: { type: 'string', contentEncoding: 'base64' }," +
+				"         numbers: { type: 'array', items: { type: 'integer' } }," +
+				"         strings: { type: 'array', items: { type: 'string' } }," +
+				"         nested: { " +
+				"             type: 'object'," +
+				"             properties: { " +
+				"                 booleanField: { type: 'boolean' }," +
+				"                 decimalField: { type: 'number' }" +
+				"             }" +
+				"         }" +
+				"    }" +
+				"}").build();
+
+		final Row expected = new Row(10);
+		expected.setField(0, id);
+		expected.setField(1, null);
+		expected.setField(2, name);
+		expected.setField(3, Date.valueOf("1990-10-14"));
+		expected.setField(4, Time.valueOf("12:12:43"));
+		expected.setField(5, Timestamp.valueOf("1990-10-14 12:12:43"));
+		expected.setField(6, bytes);
+		expected.setField(7, numbers);
+		expected.setField(8, strings);
+		final Row nestedRow = new Row(2);
+		nestedRow.setField(0, true);
+		nestedRow.setField(1, BigDecimal.valueOf(12));
+		expected.setField(9, nestedRow);
+
+		assertThat(serializedJson, whenDeserializedWith(deserializationSchema).equalsTo(expected));
+	}
+
+	@Test
+	public void testSchemaDeserializationWithoutZAndT() throws Exception {
+		final BigDecimal id = BigDecimal.valueOf(1238123899121L);
+		final String name = "asdlkjasjkdla998y1122";
+		final byte[] bytes = new byte[1024];
+		ThreadLocalRandom.current().nextBytes(bytes);
+		final BigDecimal[] numbers = new BigDecimal[] {
+			BigDecimal.valueOf(1), BigDecimal.valueOf(2), BigDecimal.valueOf(3)};
+		final String[] strings = new String[] {"one", "two", "three"};
+
+		final ObjectMapper objectMapper = new ObjectMapper();
+
+		// Root
+		ObjectNode root = objectMapper.createObjectNode();
+		root.put("id", id.longValue());
+		root.putNull("idOrNull");
+		root.put("name", name);
+		root.put("date", "1990-10-14");
+		root.put("time", "12:12:43");
+		root.put("timestamp", "1990-10-14 12:12:43");
+		root.put("bytes", bytes);
+		root.putArray("numbers").add(1).add(2).add(3);
+		root.putArray("strings").add("one").add("two").add("three");
+		root.putObject("nested").put("booleanField", true).put("decimalField", 12);
+
+		final byte[] serializedJson = objectMapper.writeValueAsBytes(root);
+
+		JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema.Builder(
+			"{" +
+				"    type: 'object'," +
+				"    properties: {" +
+				"         id: { type: 'integer' }," +
+				"         idOrNull: { type: ['integer', 'null'] }," +
+				"         name: { type: 'string' }," +
+				"         date: { type: 'string', format: 'date' }," +
+				"         time: { type: 'string', format: 'time' }," +
+				"         timestamp: { type: 'string', format: 'date-time' }," +
+				"         bytes: { type: 'string', contentEncoding: 'base64' }," +
+				"         numbers: { type: 'array', items: { type: 'integer' } }," +
+				"         strings: { type: 'array', items: { type: 'string' } }," +
+				"         nested: { " +
+				"             type: 'object'," +
+				"             properties: { " +
+				"                 booleanField: { type: 'boolean' }," +
+				"                 decimalField: { type: 'number' }" +
+				"             }" +
+				"         }" +
+				"    }" +
+				"}").build();
+
+		final Row expected = new Row(10);
+		expected.setField(0, id);
+		expected.setField(1, null);
+		expected.setField(2, name);
+		expected.setField(3, Date.valueOf("1990-10-14"));
+		expected.setField(4, Time.valueOf("12:12:43"));
+		expected.setField(5, Timestamp.valueOf("1990-10-14 12:12:43"));
+		expected.setField(6, bytes);
+		expected.setField(7, numbers);
+		expected.setField(8, strings);
+		final Row nestedRow = new Row(2);
+		nestedRow.setField(0, true);
+		nestedRow.setField(1, BigDecimal.valueOf(12));
+		expected.setField(9, nestedRow);
+
+		assertThat(serializedJson, whenDeserializedWith(deserializationSchema).equalsTo(expected));
+	}
+
+	@Test
 	public void testIgnoreDeserialization() throws Exception {
 		long id = 1238123899121L;
 		String name = "asdlkjasjkdla998y1122";
@@ -402,7 +538,8 @@ public class JsonRowDeserializationSchemaTest {
 		TestSpec
 			.json("{\"id\":\"2019-11-12 18:00:12\"}")
 			.typeInfo(Types.ROW_NAMED(new String[]{"id"}, Types.SQL_TIMESTAMP))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12 18:00:12\"}'"),
+			//.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12 18:00:12\"}'"),
+			.expect(Row.of(Timestamp.valueOf("2019-11-12 18:00:12"))),
 
 		TestSpec
 			.json("{\"id\":\"abc\"}")

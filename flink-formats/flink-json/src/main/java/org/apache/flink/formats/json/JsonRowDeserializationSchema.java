@@ -64,8 +64,7 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
-import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIMESTAMP_FORMAT;
-import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIME_FORMAT;
+import static org.apache.flink.formats.json.TimeFormats.*;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -488,7 +487,7 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		// according to RFC 3339 every date-time must have a timezone;
 		// until we have full timezone support, we only support UTC;
 		// users can parse their time as string as a workaround
-		TemporalAccessor parsedTimestamp = RFC3339_TIMESTAMP_FORMAT.parse(jsonNode.asText());
+		TemporalAccessor parsedTimestamp = SIMPLE_TIMESTAMP_FORMAT.parse(jsonNode.asText());
 
 		ZoneOffset zoneOffset = parsedTimestamp.query(TemporalQueries.offset());
 
@@ -513,7 +512,8 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		// until we have full timezone support, we only support UTC;
 		// users can parse their time as string as a workaround
 
-		TemporalAccessor parsedTime = RFC3339_TIME_FORMAT.parse(jsonNode.asText());
+		// TemporalAccessor parsedTime = RFC3339_TIME_FORMAT.parse(jsonNode.asText());
+		TemporalAccessor parsedTime = SIMPLE_TIME_FORMAT.parse(jsonNode.asText());
 
 		ZoneOffset zoneOffset = parsedTime.query(TemporalQueries.offset());
 		LocalTime localTime = parsedTime.query(TemporalQueries.localTime());

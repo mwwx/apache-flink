@@ -57,6 +57,21 @@ class TimeFormats {
 		.append(SQL_TIME_FORMAT)
 		.toFormatter();
 
+	/** SIMPLE_TIME_FORMAT. */
+	static final DateTimeFormatter SIMPLE_TIME_FORMAT = new DateTimeFormatterBuilder()
+		.appendPattern("HH:mm:ss")
+		.appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
+		.appendOptional(new DateTimeFormatterBuilder().appendPattern("'Z'").toFormatter())
+		.toFormatter();
+
+	/** SIMPLE_TIMESTAMP_FORMAT. */
+	static final DateTimeFormatter SIMPLE_TIMESTAMP_FORMAT = new DateTimeFormatterBuilder()
+		.append(DateTimeFormatter.ISO_LOCAL_DATE)
+		.appendOptional(new DateTimeFormatterBuilder().appendLiteral('T').toFormatter())
+		.appendOptional(new DateTimeFormatterBuilder().appendLiteral(' ').toFormatter())
+		.append(SIMPLE_TIME_FORMAT)
+		.toFormatter();
+
 	private TimeFormats() {
 	}
 }
