@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<artifactId>flink-parent</artifactId>
+		<groupId>org.apache.flink</groupId>
+		<version>1.11.2</version>
+		<relativePath>..</relativePath>
+	</parent>
+
+	<artifactId>flink-shaded-objenesis</artifactId>
+	<name>flink-shaded-objenesis</name>
+
+	<packaging>jar</packaging>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.objenesis</groupId>
+			<artifactId>objenesis</artifactId>
+			<version>2.5</version>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<configuration>
+					<!-- remove all classes of dependencies that are not used by the project -->
+					<!--<minimizeJar>true</minimizeJar>-->
+					<shadedArtifactAttached>false</shadedArtifactAttached>
+					<createDependencyReducedPom>true</createDependencyReducedPom>
+					<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
+					<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
+					<artifactSet>
+						<includes>
+							<include>org.objenesis:objenesis</include>
+						</includes>
+					</artifactSet>
+					<relocations>
+						<relocation>
+							<pattern>org.objenesis.ObjenesisException</pattern>
+							<shadedPattern>org.apache.flink.objenesis.shaded.org.objenesis.ObjenesisException</shadedPattern>
+						</relocation>
+						<relocation>
+							<pattern>org.objenesis.Objenesis</pattern>
+							<shadedPattern>org.apache.flink.objenesis.shaded.org.objenesis.Objenesis</shadedPattern>
+						</relocation>
+						<relocation>
+							<pattern>org.objenesis.ObjenesisBase</pattern>
+							<shadedPattern>org.apache.flink.objenesis.shaded.org.objenesis.ObjenesisBase</shadedPattern>
+						</relocation>
+						<relocation>
+							<pattern>org.objenesis.ObjenesisHelper</pattern>
+							<shadedPattern>org.apache.flink.objenesis.shaded.org.objenesis.ObjenesisHelper</shadedPattern>
+						</relocation>
+						<relocation>
+							<pattern>org.objenesis.ObjenesisSerializer</pattern>
+							<shadedPattern>org.apache.flink.objenesis.shaded.org.objenesis.ObjenesisSerializer</shadedPattern>
+						</relocation>
+						<relocation>
+							<pattern>org.objenesis.ObjenesisStd</pattern>
+							<shadedPattern>org.apache.flink.objenesis.shaded.org.objenesis.ObjenesisStd</shadedPattern>
+						</relocation>
+						<relocation>
+							<pattern>org.objenesis.strategy</pattern>
+							<shadedPattern>com.esotericsoftware.shaded.org.objenesis.strategy</shadedPattern>
+						</relocation>
+						<relocation>
+							<pattern>org.objenesis.instantiator</pattern>
+							<shadedPattern>org.apache.flink.objenesis.shaded.org.objenesis.instantiator</shadedPattern>
+						</relocation>
+					</relocations>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>
