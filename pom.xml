@@ -1312,6 +1312,22 @@ under the License.
 				</pluginManagement>
 			</build>
 		</profile>
+
+		<profile>
+			<id>deploy</id>
+			<distributionManagement>
+				<repository>
+					<id>datapps</id>
+					<name>Local Internal Repository</name>
+					<url>http://192.168.1.79:8081/artifactory/datapps</url>
+				</repository>
+				<snapshotRepository>
+					<id>local.snapshots</id>
+					<name>Local Internal Repository</name>
+					<url>http://192.168.1.79:8081/artifactory/datapps</url>
+				</snapshotRepository>
+			</distributionManagement>
+		</profile>
 	</profiles>
 
 	<build>
