@@ -19,6 +19,7 @@
 package org.apache.flink.table.delegation;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.ResolvedExpression;
@@ -47,6 +48,16 @@ public interface Parser {
 	 * @throws org.apache.flink.table.api.SqlParserException when failed to parse the statement
 	 */
 	List<Operation> parse(String statement);
+
+	/**
+	 * to visit sqlNode.
+	 * @param statement the SQL statement to evaluate
+	 * @param env TableEnvironment
+	 * @return org.apache.flink.table.api.SqlParserException when failed to parse the statement
+	 */
+	default List<Operation> parse(String statement, TableEnvironment env) {
+		return parse(statement);
+	}
 
 	/**
 	 * Entry point for parsing SQL identifiers expressed as a String.
