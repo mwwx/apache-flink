@@ -661,7 +661,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
 	@Override
 	public Table sqlQuery(String query) {
-		List<Operation> operations = parser.parse(query);
+		List<Operation> operations = parser.parse(query, this);
 
 		if (operations.size() != 1) {
 			throw new ValidationException(
@@ -750,7 +750,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
 	@Override
 	public void sqlUpdate(String stmt) {
-		List<Operation> operations = parser.parse(stmt);
+		List<Operation> operations = parser.parse(stmt, this);
 
 		if (operations.size() != 1) {
 			throw new TableException(UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG);

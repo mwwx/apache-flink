@@ -187,7 +187,6 @@ under the License.
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 		<test.scheduler.type></test.scheduler.type>
 		<test.groups></test.groups>
-		<linkoopdb.version>3.0.0</linkoopdb.version>
 	</properties>
 
 	<dependencies>

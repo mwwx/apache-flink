@@ -18,8 +18,11 @@
 
 package org.apache.flink.table.planner.delegation;
 
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.api.function.UnresolvedTableFunctionSqlVisitor;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.delegation.Parser;
@@ -77,6 +80,26 @@ public class ParserImpl implements Parser {
 
 		Operation operation = SqlToOperationConverter.convert(planner, catalogManager, parsed)
 			.orElseThrow(() -> new TableException("Unsupported query: " + statement));
+		return Collections.singletonList(operation);
+	}
+
+	@Override
+	public List<Operation> parse(String statement, TableEnvironment env) {
+		CalciteParser parser = calciteParserSupplier.get();
+		FlinkPlannerImpl planner = validatorSupplier.get();
+		// parse the sql query
+		SqlNode parsed = parser.parse(statement);
+
+		if (env instanceof StreamTableEnvironment) {
+			UnresolvedTableFunctionSqlVisitor visitor = new UnresolvedTableFunctionSqlVisitor((StreamTableEnvironment) env);
+			parsed.accept(visitor);
+		}
+		Operation operation = SqlToOperationConverter.convert(planner, catalogManager, parsed)
+			.orElseThrow(() -> new TableException(
+				"Unsupported SQL query! parse() only accepts SQL queries of type " +
+					"SELECT, UNION, INTERSECT, EXCEPT, VALUES, ORDER_BY or INSERT;" +
+					"and SQL DDLs of type " +
+					"CREATE TABLE"));
 		return Collections.singletonList(operation);
 	}
 
