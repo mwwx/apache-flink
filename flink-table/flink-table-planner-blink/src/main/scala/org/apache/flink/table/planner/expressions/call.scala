@@ -179,7 +179,8 @@ case class PlannerScalarFunctionCall(
   override private[flink] def resultType =
     fromDataTypeToTypeInfo(getResultTypeOfScalarFunction(
       scalarFunction,
-      signature))
+      signature,
+      Array()))
 
   override private[flink] def validateInput(): ValidationResult = {
     signature = children.map(_.resultType).map(fromTypeInfoToLogicalType).toArray

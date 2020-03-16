@@ -48,6 +48,21 @@ class ScalarFunctionCallGen(scalarFunction: ScalarFunction) extends CallGenerato
     // determine function method and result class
     val resultClass = getResultTypeClassOfScalarFunction(scalarFunction, operandTypes)
 
+    val parameterCount = operandTypes.length
+    val foundParameter: Array[AnyRef] = new Array[AnyRef](parameterCount)
+
+    if (scalarFunction.isDynamicResultType) {
+      var index:Int = 0
+      for (operand <- operands) {
+        if (operand.literal) {
+          foundParameter(index) = operand.literalValue.get.asInstanceOf[AnyRef]
+        } else {
+          foundParameter(index) = null
+        }
+        index = index + 1
+      }
+    }
+
     // convert parameters for function (output boxing)
     val parameters = prepareUDFArgs(ctx, operands, scalarFunction)
 
@@ -61,7 +76,7 @@ class ScalarFunctionCallGen(scalarFunction: ScalarFunction) extends CallGenerato
     val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
     val evalResult = s"$functionReference.eval(${parameters.map(_.resultTerm).mkString(", ")})"
     val resultExternalType = UserDefinedFunctionUtils.getResultTypeOfScalarFunction(
-      scalarFunction, operandTypes)
+      scalarFunction, operandTypes, foundParameter)
     val setResult = {
       if (resultClass.isPrimitive && isInternalClass(resultExternalType)) {
         s"$resultTerm = $evalResult;"

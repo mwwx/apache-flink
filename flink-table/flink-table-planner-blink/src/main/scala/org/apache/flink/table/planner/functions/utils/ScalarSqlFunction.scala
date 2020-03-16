@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.planner.functions.utils
 
+import com.google.common.primitives.Primitives
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.functions.{FunctionIdentifier, ScalarFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction._
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.{getOperandType, _}
-import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.getDefaultExternalClassForType
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.logical.LogicalType
@@ -32,8 +32,6 @@ import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
 import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.parser.SqlParserPos
-
-import scala.collection.JavaConverters._
 
 /**
   * Calcite wrapper for user-defined scalar functions.
@@ -66,6 +64,8 @@ class ScalarSqlFunction(
 
   override def isDeterministic: Boolean = scalarFunction.isDeterministic
 
+  override def isDynamicFunction: Boolean = scalarFunction.isDynamicResultType
+
   override def toString: String = displayName
 }
 
@@ -80,11 +80,55 @@ object ScalarSqlFunction {
       */
     new SqlReturnTypeInference {
       override def inferReturnType(opBinding: SqlOperatorBinding): RelDataType = {
-        val parameters = getOperandType(opBinding).toArray
-        val resultType = getResultTypeOfScalarFunction(scalarFunction, parameters)
+        val parameterTypes = getOperandType(opBinding).toArray
+
+        val parameterCount = opBinding.getOperandCount
+        val foundParameter: Array[AnyRef] = new Array[AnyRef](parameterCount)
+
+        if (scalarFunction.isDynamicResultType) {
+          val foundSignature = getEvalMethodSignature(scalarFunction, parameterTypes)
+          if (foundSignature.isEmpty) {
+            throw new ValidationException(
+              s"Given parameters of function '$name' do not match any signature. \n" +
+                s"Expected: ${signaturesToString(scalarFunction, "eval")}")
+          }
+
+          for (index <- 0 until parameterCount) {
+            if (opBinding.isOperandLiteral(index, false)
+              && !opBinding.isOperandNull(index, false)) {
+              val value = opBinding.getOperandLiteralValue(
+                index, primitiveTypeConverter(foundSignature(index), name: String): Class[_])
+              foundParameter(index) = value.asInstanceOf[AnyRef]
+            } else {
+              foundParameter(index) = null
+            }
+          }
+        }
+        val resultType = getResultTypeOfScalarFunction(
+          scalarFunction, parameterTypes, foundParameter)
         typeFactory.createFieldTypeFromLogicalType(
           fromDataTypeToLogicalType(resultType))
       }
+    }
+  }
+
+  private[flink] def primitiveTypeConverter(typeClass: Class[_],
+    name: String): Class[_] ={
+    if (typeClass.isPrimitive) {
+      Primitives.wrap(typeClass)
+    } else if (typeClass == classOf[Int]
+      || typeClass == classOf[String]
+      || typeClass == classOf[Byte]
+      || typeClass == classOf[Short]
+      || typeClass == classOf[Long]
+      || typeClass == classOf[Double]
+      || typeClass == classOf[Float]) {
+      typeClass
+    } else {
+      throw new ValidationException(
+        s"Given parameters of function '$name' with dynamic result" +
+          s" do not support data type. \n" +
+          s"Actual: $typeClass")
     }
   }
 

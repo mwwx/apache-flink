@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.functions.utils
 
+import com.google.common.primitives.Primitives
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`._
@@ -55,6 +56,8 @@ class ScalarSqlFunction(
 
   override def isDeterministic: Boolean = scalarFunction.isDeterministic
 
+  override def isDynamicFunction: Boolean = scalarFunction.isDynamicResultType
+
   override def toString: String = displayName
 }
 
@@ -70,7 +73,7 @@ object ScalarSqlFunction {
       */
     new SqlReturnTypeInference {
       override def inferReturnType(opBinding: SqlOperatorBinding): RelDataType = {
-        val parameters = opBinding
+        val parameterTypes = opBinding
           .collectOperandTypes()
           .asScala
           .map { operandType =>
@@ -80,16 +83,53 @@ object ScalarSqlFunction {
               FlinkTypeFactory.toTypeInfo(operandType)
             }
           }
-        val foundSignature = getEvalMethodSignature(scalarFunction, parameters)
+        val foundSignature = getEvalMethodSignature(scalarFunction, parameterTypes)
         if (foundSignature.isEmpty) {
           throw new ValidationException(
             s"Given parameters of function '$name' do not match any signature. \n" +
-              s"Actual: ${signatureToString(parameters)} \n" +
+              s"Actual: ${signatureToString(parameterTypes)} \n" +
               s"Expected: ${signaturesToString(scalarFunction, "eval")}")
         }
-        val resultType = getResultTypeOfScalarFunction(scalarFunction, foundSignature.get)
+        val parameterCount = opBinding.getOperandCount
+        val foundParameter: Array[AnyRef] = new Array[AnyRef](parameterCount)
+
+        val foundSignatures: Array[Class[_]] = foundSignature.get
+        if (scalarFunction.isDynamicResultType) {
+          for (index <- 0 until parameterCount) {
+            if (opBinding.isOperandLiteral(index, false)
+              && !opBinding.isOperandNull(index, false)) {
+              val value = opBinding.getOperandLiteralValue(
+                index, primitiveTypeConverter(foundSignatures(index), name: String): Class[_])
+              foundParameter(index) = value.asInstanceOf[AnyRef]
+            } else {
+              foundParameter(index) = null
+            }
+          }
+        }
+
+        val resultType = getResultTypeOfScalarFunction(scalarFunction,
+          foundSignatures, foundParameter)
         typeFactory.createTypeFromTypeInfo(resultType, isNullable = true)
       }
+    }
+  }
+
+  private[flink] def primitiveTypeConverter(typeClass: Class[_],
+    name: String): Class[_] ={
+    if (typeClass.isPrimitive) {
+      Primitives.wrap(typeClass)
+    } else if (typeClass == classOf[Int]
+      || typeClass == classOf[String]
+      || typeClass == classOf[Byte]
+      || typeClass == classOf[Short]
+      || typeClass == classOf[Long]
+      || typeClass == classOf[Double]
+      || typeClass == classOf[Float]) {
+      typeClass
+    } else {
+      throw new ValidationException(
+        s"Given parameters of function '$name' with dynamic result do not support data type. \n" +
+          s"Actual: $typeClass")
     }
   }
 }

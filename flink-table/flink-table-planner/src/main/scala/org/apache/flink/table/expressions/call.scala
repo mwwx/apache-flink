@@ -263,7 +263,8 @@ case class PlannerScalarFunctionCall(
   override private[flink] def resultType =
     getResultTypeOfScalarFunction(
       scalarFunction,
-      foundSignature.get)
+      foundSignature.get,
+      Array())
 
   override private[flink] def validateInput(): ValidationResult = {
     val signature = children.map(_.resultType)

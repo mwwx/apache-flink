@@ -74,4 +74,17 @@ public interface FunctionDefinition {
 	default boolean isDeterministic() {
 		return true;
 	}
+
+	/**
+	 * Returns information about the determinism of the function's results.
+	 *
+	 * <p>It returns <code>true</code> if and only if a call to this function is guaranteed to always return
+	 * the different result type given the different parameters; false is assumed by
+	 * default if user's function is not pure functional, like json_to_struct...
+	 * isDynamicResultType must return true
+	 */
+	default boolean isDynamicResultType() {
+		return false;
+	}
+
 }

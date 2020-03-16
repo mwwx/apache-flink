@@ -30,9 +30,10 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.planner.expressions.utils.{Func31, Func32, Func33}
+import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestData, TestSinkUtil, TestingAppendSink, TestingAppendTableSink}
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit._
 
@@ -357,6 +358,51 @@ class CalcITCase extends StreamingTestBase {
 
     val expected =
       List("1,HI,1111,true,111","2,HELLO,2222,false,222", "3,HELLO WORLD,3333,true,333")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testResultWithParam(): Unit = {
+    val sqlQuery = "SELECT b, Func31('name,2;age,1','lily,23'), " +
+      "Func32('name,2;age,1','lucy,15') FROM MyTable WHERE b in (1)"
+
+    val t = env.fromCollection(TestData.tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    tEnv.registerTable("MyTable", t)
+    tEnv.registerFunction("Func31", new Func31)
+    tEnv.registerFunction("Func32", new Func32)
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "1,lily,23,lucy,15")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testResultWithParamTypes(): Unit = {
+    val sqlQuery = "SELECT b, Func31('name,2;age,1','lily,23'), " +
+      "Func33('name,2;age,1','lucy,15', 1, cast(1234567 as bigint)," +
+      " cast(12.34 as double), cast(1.2 as float)," +
+      " cast(8 as tinyint), cast(12 as smallint)) " +
+      " FROM MyTable WHERE b in (1)"
+
+    val t = env.fromCollection(TestData.tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    tEnv.registerTable("MyTable", t)
+    tEnv.registerFunction("Func31", new Func31)
+    tEnv.registerFunction("Func33", new Func33)
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "1,lily,23,lucy,15")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 }

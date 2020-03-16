@@ -24,6 +24,7 @@ import java.util.Random
 
 import org.apache.commons.lang3.StringUtils
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.{FunctionContext, ScalarFunction}
 import org.apache.flink.types.Row
@@ -381,3 +382,77 @@ class People(val name: String)
 class Student(name: String) extends People(name)
 
 class GraduatedStudent(name: String) extends Student(name)
+
+class Func26 extends ScalarFunction {
+  def eval(typeInfo: String, json: String): Row = {
+    val splits: Array[String] = json.split(",")
+    Row.of(splits)
+  }
+
+  override def isDynamicResultType: Boolean = true
+
+  override def getResultType(parameters: Array[AnyRef]): TypeInformation[_] = {
+    val parameter: String = parameters(0).asInstanceOf[String]
+    val infos = parameter.split(";")
+
+    val names: Array[String] = new Array[String](infos.length)
+    val types: Array[TypeInformation[_]] = new Array[TypeInformation[_]](infos.length)
+
+    var index = 0
+    infos.foreach(info => {
+      val details: Array[String] = info.split(",")
+      names(index) = details(0)
+      types(index) = details(1) match {
+        case "1" =>
+          Types.INT
+        case "2" =>
+          Types.STRING()
+        case _ =>
+          Types.INT()
+      }
+      index = index + 1
+    })
+
+    Types.ROW(names, types)
+  }
+}
+
+class Func27 extends ScalarFunction {
+  def eval(typeInfo: String, json: String, type1: Int,
+           type2: Long, type3: Double, type4: Float,
+           type6: Byte, type7: Short): Row = {
+    val splits: Array[String] = json.split(";")
+    Row.of(splits)
+  }
+
+  override def isDynamicResultType: Boolean = true
+
+  override def getResultType(parameters: Array[AnyRef]): TypeInformation[_] = {
+    val parameter: String = parameters(0).asInstanceOf[String]
+    parameters(2).asInstanceOf[Int]
+    parameters(3).asInstanceOf[Long]
+    parameters(4).asInstanceOf[Double]
+    parameters(5).asInstanceOf[Float]
+    parameters(6).asInstanceOf[Byte]
+    parameters(7).asInstanceOf[Short]
+    val infos = parameter.split(";")
+
+    val types: Array[TypeInformation[_]] = new Array[TypeInformation[_]](infos.length)
+
+    var index = 0
+    infos.foreach(info => {
+      val details: Array[String] = info.split(",")
+      types(index) = details(1) match {
+        case "1" =>
+          Types.INT
+        case "2" =>
+          Types.STRING()
+        case _ =>
+          Types.INT()
+      }
+      index = index + 1
+    })
+
+    Types.ROW(types(0), types(1))
+  }
+}

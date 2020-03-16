@@ -537,10 +537,15 @@ object UserDefinedFunctionUtils {
     */
   def getResultTypeOfScalarFunction(
       function: ScalarFunction,
-      signature: Array[Class[_]])
+      signature: Array[Class[_]],
+      parameter: Array[AnyRef])
     : TypeInformation[_] = {
+    if (function.isDynamicResultType) {
+      function.getResultType(parameter)
+    }
 
     val userDefinedTypeInfo = function.getResultType(signature)
+
     if (userDefinedTypeInfo != null) {
       userDefinedTypeInfo
     } else {
