@@ -20,13 +20,12 @@ package org.apache.flink.table.runtime.utils
 
 import java.io.{File, FileOutputStream, OutputStreamWriter}
 import java.util
+import java.util.Collections
 
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.table.api.TableSchema
-import org.apache.flink.table.catalog._
-import org.apache.flink.table.descriptors.{OldCsv, FileSystem, Schema}
 import org.apache.flink.table.sources.{BatchTableSource, CsvTableSource}
 
 object CommonTestData {
@@ -56,6 +55,7 @@ object CommonTestData {
       .lineDelimiter("$")
       .ignoreFirstLine()
       .commentPrefix("%")
+      .rowtimeAttributeDescriptors(Collections.emptyList())
       .build()
   }
 

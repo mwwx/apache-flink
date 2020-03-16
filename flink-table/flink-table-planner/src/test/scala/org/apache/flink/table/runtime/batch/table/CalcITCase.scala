@@ -594,6 +594,31 @@ class CalcITCase(
     val results = filterDs.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
+
+  @Test
+  def testResultTypeOnParameter(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = BatchTableEnvironment.create(env)
+    tEnv.registerFunction("Func26", new Func26)
+    tEnv.registerFunction("Func27", new Func27)
+    UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "Abc"))
+
+    val ds = CollectionDataSets.getSmall3TupleDataSet(env)
+    tEnv.registerDataSet("t1", ds, 'a, 'b, 'c)
+
+    val sqlQuery = "SELECT c, Func26('name,2;age,1','lily,23'), " +
+      "Func27('name,2;age,1','lucy,15', 1, cast(1234567 as bigint)," +
+      " cast(12.34 as double), cast(1.2 as float)," +
+      "cast(8 as tinyint), cast(12 as smallint)) FROM t1 " +
+      "where c = 'Hello world'"
+
+    val result = tEnv.sqlQuery(sqlQuery)
+
+    val expected = "Hello world,[lily, 23],[lucy,15]"
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+
+  }
 }
 
 object CalcITCase {

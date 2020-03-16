@@ -624,12 +624,25 @@ object UserDefinedFunctionUtils {
 
   def getResultTypeOfScalarFunction(
       function: ScalarFunction,
-      argTypes: Array[LogicalType]): DataType = {
-    val userDefinedTypeInfo = function.getResultType(getEvalMethodSignature(function, argTypes))
-    if (userDefinedTypeInfo != null) {
-      fromLegacyInfoToDataType(userDefinedTypeInfo)
+      argTypes: Array[LogicalType],
+      params: Array[AnyRef]): DataType = {
+    if (function.isDynamicResultType) {
+      val userDefinedTypeInfo = function.getResultType(params)
+      if (userDefinedTypeInfo == null) {
+        throw new ValidationException(
+          s"Return type of scalar function '${function.getClass.getCanonicalName}' cannot be " +
+            s"automatically determined. Please provide type" +
+            s"information manually using getResultType.")
+      } else {
+        fromLegacyInfoToDataType(userDefinedTypeInfo)
+      }
     } else {
-      extractTypeFromScalarFunc(function, argTypes)
+      val userDefinedTypeInfo = function.getResultType(getEvalMethodSignature(function, argTypes))
+      if (userDefinedTypeInfo != null) {
+        fromLegacyInfoToDataType(userDefinedTypeInfo)
+      } else {
+        extractTypeFromScalarFunc(function, argTypes)
+      }
     }
   }
 

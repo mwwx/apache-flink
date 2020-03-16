@@ -492,6 +492,116 @@ class FuncWithOpen extends ScalarFunction {
 }
 
 @SerialVersionUID(1L)
+class Func31 extends ScalarFunction {
+  def eval(typeInfo: String, json: String): Row = {
+    val splits: Array[String] = json.split(",");
+    Row.of(splits)
+  }
+
+  override def isDynamicResultType: Boolean = true
+
+  override def getResultType(parameters: Array[AnyRef]): TypeInformation[_] = {
+    val parameter: String = parameters(0).toString
+    val infos = parameter.split(";");
+
+    val names: Array[String] = new Array[String](infos.length)
+    val types: Array[TypeInformation[_]] = new Array[TypeInformation[_]](infos.length)
+
+    var index = 0
+    infos.foreach(info => {
+      val details: Array[String] = info.split(",")
+      names(index) = details(0)
+      types(index) = details(1) match {
+        case "1" =>
+          Types.INT
+        case "2" =>
+          Types.STRING()
+        case _ =>
+          Types.INT()
+      }
+      index = index + 1
+    })
+
+    Types.ROW(names, types)
+  }
+}
+
+@SerialVersionUID(1L)
+class Func32 extends ScalarFunction {
+  def eval(typeInfo: String, json: String): Row = {
+    val splits: Array[String] = json.split(";");
+    Row.of(splits)
+  }
+
+  override def isDynamicResultType: Boolean = true
+
+  override def getResultType(parameters: Array[AnyRef]): TypeInformation[_] = {
+    val parameter: String = parameters(0).toString
+    val infos = parameter.split(";");
+
+    val types: Array[TypeInformation[_]] = new Array[TypeInformation[_]](infos.length)
+
+    var index = 0
+    infos.foreach(info => {
+      val details: Array[String] = info.split(",")
+      types(index) = details(1) match {
+        case "1" =>
+          Types.INT
+        case "2" =>
+          Types.STRING()
+        case _ =>
+          Types.INT()
+      }
+      index = index + 1
+    })
+
+    Types.ROW(types(0), types(1))
+  }
+}
+
+@SerialVersionUID(1L)
+class Func33 extends ScalarFunction {
+  def eval(typeInfo: String, json: String, type1: Int,
+    type2: Long, type3: Double, type4: Float,
+    type6: Byte, type7: Short): Row = {
+    val splits: Array[String] = json.split(";");
+    Row.of(splits)
+  }
+
+  override def isDynamicResultType: Boolean = true
+
+  override def getResultType(parameters: Array[AnyRef]): TypeInformation[_] = {
+    val parameter: String = parameters(0).toString
+    parameters(2).asInstanceOf[Int]
+    parameters(3).asInstanceOf[Long]
+    parameters(4).asInstanceOf[Double]
+    parameters(5).asInstanceOf[Float]
+    parameters(6).asInstanceOf[Byte]
+    parameters(7).asInstanceOf[Short]
+
+    val infos = parameter.split(";");
+
+    val types: Array[TypeInformation[_]] = new Array[TypeInformation[_]](infos.length)
+
+    var index = 0
+    infos.foreach(info => {
+      val details: Array[String] = info.split(",")
+      types(index) = details(1) match {
+        case "1" =>
+          Types.INT
+        case "2" =>
+          Types.STRING()
+        case _ =>
+          Types.INT()
+      }
+      index = index + 1
+    })
+
+    Types.ROW(types(0), types(1))
+  }
+}
+
+@SerialVersionUID(1L)
 class SplitUDF(deterministic: Boolean) extends ScalarFunction {
   def eval(x: String, sep: String, index: Int): String = {
     val splits = StringUtils.splitByWholeSeparator(x, sep)
