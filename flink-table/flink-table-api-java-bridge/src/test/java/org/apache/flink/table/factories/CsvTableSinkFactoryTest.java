@@ -100,6 +100,40 @@ public class CsvTableSinkFactoryTest {
 		assertEquals(testingSchema.toRowDataType(), sink.getProducedDataType());
 	}
 
+	@Test
+	public void testAppendTableSinkFactoryParallelism() {
+		DescriptorProperties descriptor = createDescriptor(testingSchema);
+		descriptor.putString("update-mode", "append");
+		descriptor.putInt("parallelism", 5);
+		TableSink sink = createTableSink(descriptor);
+
+		assertTrue(sink instanceof CsvTableSink);
+		assertEquals(testingSchema.toRowDataType(), sink.getConsumedDataType());
+	}
+
+	@Test
+	public void testAppendTableSinkFactoryWriteMode() {
+		DescriptorProperties descriptor = createDescriptor(testingSchema);
+		descriptor.putString("update-mode", "append");
+		descriptor.putString("write-mode", "OVERWRITE");
+		TableSink sink = createTableSink(descriptor);
+
+		assertTrue(sink instanceof CsvTableSink);
+		assertEquals(testingSchema.toRowDataType(), sink.getConsumedDataType());
+	}
+
+	@Test
+	public void testAppendTableSinkFactoryWriteModeAndParallelism() {
+		DescriptorProperties descriptor = createDescriptor(testingSchema);
+		descriptor.putString("update-mode", "append");
+		descriptor.putString("write-mode", "OVERWRITE");
+		descriptor.putInt("parallelism", 5);
+		TableSink sink = createTableSink(descriptor);
+
+		assertTrue(sink instanceof CsvTableSink);
+		assertEquals(testingSchema.toRowDataType(), sink.getConsumedDataType());
+	}
+
 	private DescriptorProperties createDescriptor(TableSchema schema) {
 		Map<String, String> properties = new HashMap<>();
 		properties.put("connector.type", "filesystem");

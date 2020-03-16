@@ -23,6 +23,7 @@ import org.apache.flink.table.factories.StreamTableSinkFactory;
 import org.apache.flink.types.Row;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE;
@@ -39,6 +40,16 @@ public class CsvAppendTableSinkFactory extends CsvTableSinkFactoryBase implement
 		Map<String, String> context = new HashMap<>(super.requiredContext());
 		context.put(UPDATE_MODE, UPDATE_MODE_VALUE_APPEND);
 		return context;
+	}
+
+	@Override
+	public List<String> supportedProperties() {
+		List<String> properties = super.supportedProperties();
+		// support writeMode
+		properties.add(WRITE_MODE);
+		// support parallelism
+		properties.add(PARALLELISM);
+		return properties;
 	}
 
 	@Override

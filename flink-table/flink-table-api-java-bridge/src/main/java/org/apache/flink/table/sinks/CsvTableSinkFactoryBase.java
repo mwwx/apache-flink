@@ -39,7 +39,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
@@ -60,6 +59,11 @@ import static org.apache.flink.table.sources.CsvTableSourceFactoryBase.getFieldL
  */
 @Internal
 public abstract class CsvTableSinkFactoryBase implements TableFactory {
+
+	public static final String WRITE_MODE = "write-mode";
+	public static final String PARALLELISM = "parallelism";
+	public static final String WRITE_MODE_DEFAULT = "NO_OVERWRITE";
+	public static final String WRITE_MODE_OVERWRITE = "OVERWRITE";
 
 	@Override
 	public Map<String, String> requiredContext() {
@@ -125,10 +129,17 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
 
 		String path = params.getString(CONNECTOR_PATH);
 		String fieldDelimiter = params.getOptionalString(FORMAT_FIELD_DELIMITER).orElse(",");
-		Optional<String> writeModeParm = params.getOptionalString(FORMAT_WRITE_MODE);
+		/*Optional<String> writeModeParm = params.getOptionalString(FORMAT_WRITE_MODE);
 		FileSystem.WriteMode writeMode =
 				(writeModeParm.isPresent()) ? FileSystem.WriteMode.valueOf(writeModeParm.get()) : null;
-		int numFiles = params.getOptionalInt(FORMAT_NUM_FILES).orElse(-1);
+		int numFiles = params.getOptionalInt(FORMAT_NUM_FILES).orElse(-1);*/
+
+		int parallelism = params.getOptionalInt(PARALLELISM).orElse(-1);
+		FileSystem.WriteMode writeMode = FileSystem.WriteMode.NO_OVERWRITE;
+		String wMode = params.getOptionalString(WRITE_MODE).orElse(WRITE_MODE_DEFAULT);
+		if (WRITE_MODE_OVERWRITE.equals(wMode)) {
+			writeMode = FileSystem.WriteMode.OVERWRITE;
+		}
 
 		// bridge to java.sql.Timestamp/Time/Date
 		DataType[] dataTypes = Arrays.stream(tableSchema.getFieldDataTypes())
@@ -149,7 +160,7 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
 		return new CsvTableSink(
 			path,
 			fieldDelimiter,
-			numFiles,
+			parallelism,
 			writeMode,
 			tableSchema.getFieldNames(),
 			dataTypes);
