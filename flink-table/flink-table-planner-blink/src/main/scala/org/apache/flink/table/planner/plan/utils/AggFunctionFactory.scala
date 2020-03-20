@@ -536,6 +536,8 @@ class AggFunctionFactory(
           val d = argTypes(0).asInstanceOf[DecimalType]
           new DecimalFirstValueWithRetractAggFunction(
             DecimalDataTypeInfo.of(d.getPrecision, d.getScale))
+        case TIMESTAMP_WITHOUT_TIME_ZONE =>
+          new TimestampWithoutTimeZoneFirstValueWithRetractAggFunction()
         case t =>
           throw new TableException(s"FIRST_VALUE with retract aggregate function does not " +
             s"support type: ''$t''.\nPlease re-check the data type.")
@@ -561,6 +563,8 @@ class AggFunctionFactory(
         case DECIMAL =>
           val d = argTypes(0).asInstanceOf[DecimalType]
           new DecimalFirstValueAggFunction(DecimalDataTypeInfo.of(d.getPrecision, d.getScale))
+        case TIMESTAMP_WITHOUT_TIME_ZONE =>
+          new TimestampWithoutTimeZoneFirstValueAggFunction()
         case t =>
           throw new TableException(s"FIRST_VALUE aggregate function does not support " +
             s"type: ''$t''.\nPlease re-check the data type.")
@@ -593,6 +597,8 @@ class AggFunctionFactory(
           val d = argTypes(0).asInstanceOf[DecimalType]
           new DecimalLastValueWithRetractAggFunction(
             DecimalDataTypeInfo.of(d.getPrecision, d.getScale))
+        case TIMESTAMP_WITHOUT_TIME_ZONE =>
+          new TimestampWithoutTimeZonelLastValueWithRetractAggFunction()
         case t =>
           throw new TableException(s"LAST_VALUE with retract aggregate function does not " +
             s"support type: ''$t''.\nPlease re-check the data type.")
@@ -618,6 +624,8 @@ class AggFunctionFactory(
         case DECIMAL =>
           val d = argTypes(0).asInstanceOf[DecimalType]
           new DecimalLastValueAggFunction(DecimalDataTypeInfo.of(d.getPrecision, d.getScale))
+        case TIMESTAMP_WITHOUT_TIME_ZONE =>
+          new TimestampWithoutTimeZoneLastValueAggFunction()
         case t =>
           throw new TableException(s"LAST_VALUE aggregate function does not support " +
             s"type: ''$t''.\nPlease re-check the data type.")
