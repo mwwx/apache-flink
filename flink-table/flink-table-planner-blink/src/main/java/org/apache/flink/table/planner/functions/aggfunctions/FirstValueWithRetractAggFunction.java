@@ -36,6 +36,7 @@ import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.dataview.MapViewSerializer;
 import org.apache.flink.table.dataview.MapViewTypeInfo;
@@ -45,6 +46,8 @@ import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.runtime.typeutils.StringDataSerializer;
 import org.apache.flink.table.runtime.typeutils.StringDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.TimestampDataSerializer;
+import org.apache.flink.table.runtime.typeutils.TimestampDataTypeInfo;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
@@ -373,6 +376,30 @@ public abstract class FirstValueWithRetractAggFunction<T> extends AggregateFunct
 		@Override
 		protected TypeSerializer<DecimalData> createValueSerializer() {
 			return new DecimalDataSerializer(decimalTypeInfo.precision(), decimalTypeInfo.scale());
+		}
+	}
+
+	/**
+	 * Built-in Timestamp FirstValue with retract aggregate function.
+	 */
+	public static class TimestampWithoutTimeZoneFirstValueWithRetractAggFunction extends FirstValueWithRetractAggFunction<TimestampData> {
+
+		public void accumulate(GenericRowData acc, TimestampData value) throws Exception {
+			super.accumulate(acc, value);
+		}
+
+		public void accumulate(GenericRowData acc, TimestampData value, Long order) throws Exception {
+			super.accumulate(acc, value, order);
+		}
+
+		@Override
+		public TypeInformation<TimestampData> getResultType() {
+			return new TimestampDataTypeInfo(0);
+		}
+
+		@Override
+		protected TypeSerializer<TimestampData> createValueSerializer() {
+			return new TimestampDataSerializer(0);
 		}
 	}
 

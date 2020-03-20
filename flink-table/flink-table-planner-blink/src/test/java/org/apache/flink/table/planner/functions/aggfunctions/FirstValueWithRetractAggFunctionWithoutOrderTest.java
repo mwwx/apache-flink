@@ -22,6 +22,7 @@ import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction.BooleanFirstValueWithRetractAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction.ByteFirstValueWithRetractAggFunction;
@@ -38,6 +39,7 @@ import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 
 import java.lang.reflect.Method;
+import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
 
@@ -379,6 +381,56 @@ public final class FirstValueWithRetractAggFunctionWithoutOrderTest {
 				null,
 				getValue("10")
 			);
+		}
+	}
+
+	/**
+	 * Test for StringFirstValueAggFunction.
+	 */
+	public static final class TimestampFirstValueAggFunctionWithOrderTest
+		extends FirstValueWithRetractAggFunctionWithoutOrderTestBase<TimestampData> {
+
+		@Override
+		protected List<List<TimestampData>> getInputValueSets() {
+			return Arrays.asList(
+				Arrays.asList(
+					TimestampData.fromTimestamp(new Timestamp(1L)),
+					TimestampData.fromTimestamp(new Timestamp(2L)),
+					TimestampData.fromTimestamp(new Timestamp(3L)),
+					null,
+					TimestampData.fromTimestamp(new Timestamp(5L)),
+					null,
+					TimestampData.fromTimestamp(new Timestamp(6L))
+				),
+				Arrays.asList(
+					null,
+					null
+				),
+				Arrays.asList(
+					null,
+					TimestampData.fromTimestamp(new Timestamp(7L))
+				),
+				Arrays.asList(
+					TimestampData.fromTimestamp(new Timestamp(8L)),
+					null,
+					TimestampData.fromTimestamp(new Timestamp(9L))
+				)
+			);
+		}
+
+		@Override
+		protected List<TimestampData> getExpectedResults() {
+			return Arrays.asList(
+				TimestampData.fromTimestamp(new Timestamp(1L)),
+				null,
+				TimestampData.fromTimestamp(new Timestamp(7L)),
+				TimestampData.fromTimestamp(new Timestamp(8L))
+			);
+		}
+
+		@Override
+		protected AggregateFunction<TimestampData, GenericRowData> getAggregator() {
+			return new FirstValueWithRetractAggFunction.TimestampWithoutTimeZoneFirstValueWithRetractAggFunction();
 		}
 	}
 }

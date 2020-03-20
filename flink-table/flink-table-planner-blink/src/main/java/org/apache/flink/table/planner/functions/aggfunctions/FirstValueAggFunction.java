@@ -23,11 +23,13 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.runtime.typeutils.StringDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.TimestampDataTypeInfo;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -194,6 +196,29 @@ public abstract class FirstValueAggFunction<T> extends AggregateFunction<T, Gene
 			return decimalTypeInfo;
 		}
 	}
+
+	/**
+	 * TimestampWithoutTimeZoneFirstValueAggFunction.
+	 */
+	public static class TimestampWithoutTimeZoneFirstValueAggFunction extends FirstValueAggFunction<TimestampData> {
+
+		public void accumulate(GenericRowData acc, TimestampData value) {
+			super.accumulate(acc, value);
+		}
+
+		public void accumulate(GenericRowData acc, TimestampData value, Long order) {
+			// just ignore nulls values and orders
+			if (value != null) {
+				super.accumulate(acc, value, order);
+			}
+		}
+
+		@Override
+		public TypeInformation<TimestampData> getResultType() {
+			return new TimestampDataTypeInfo(0);
+		}
+	}
+
 
 	/**
 	 * Built-in String FirstValue aggregate function.

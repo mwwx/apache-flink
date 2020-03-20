@@ -22,6 +22,7 @@ import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.BooleanFirstValueAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.ByteFirstValueAggFunction;
@@ -37,6 +38,7 @@ import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 
+import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
 
@@ -481,6 +483,84 @@ public final class FirstValueAggFunctionWithOrderTest {
 				null,
 				getValue("5")
 			);
+		}
+	}
+
+	/**
+	 * Test for StringFirstValueAggFunction.
+	 */
+	public static final class TimestampFirstValueAggFunctionWithOrderTest
+		extends FirstLastValueAggFunctionWithOrderTestBase<TimestampData> {
+
+		@Override
+		protected List<List<TimestampData>> getInputValueSets() {
+			return Arrays.asList(
+				Arrays.asList(
+					TimestampData.fromTimestamp(new Timestamp(1L)),
+					TimestampData.fromTimestamp(new Timestamp(2L)),
+					TimestampData.fromTimestamp(new Timestamp(3L)),
+					null,
+					TimestampData.fromTimestamp(new Timestamp(5L)),
+					null,
+					TimestampData.fromTimestamp(new Timestamp(6L))
+				),
+				Arrays.asList(
+					null,
+					null
+				),
+				Arrays.asList(
+					null,
+					TimestampData.fromTimestamp(new Timestamp(7L))
+				),
+				Arrays.asList(
+					TimestampData.fromTimestamp(new Timestamp(8L)),
+					null,
+					TimestampData.fromTimestamp(new Timestamp(9L))
+				)
+			);
+		}
+
+		@Override
+		protected List<List<Long>> getInputOrderSets() {
+			return Arrays.asList(
+				Arrays.asList(
+					10L,
+					2L,
+					5L,
+					null,
+					3L,
+					1L,
+					5L
+				),
+				Arrays.asList(
+					6L,
+					5L
+				),
+				Arrays.asList(
+					8L,
+					6L
+				),
+				Arrays.asList(
+					6L,
+					4L,
+					3L
+				)
+			);
+		}
+
+		@Override
+		protected List<TimestampData> getExpectedResults() {
+			return Arrays.asList(
+				TimestampData.fromTimestamp(new Timestamp(2L)),
+				null,
+				TimestampData.fromTimestamp(new Timestamp(7L)),
+				TimestampData.fromTimestamp(new Timestamp(9L))
+			);
+		}
+
+		@Override
+		protected AggregateFunction<TimestampData, GenericRowData> getAggregator() {
+			return new FirstValueAggFunction.TimestampWithoutTimeZoneFirstValueAggFunction();
 		}
 	}
 }
