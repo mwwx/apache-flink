@@ -90,7 +90,13 @@ object LookupJoinCodeGenerator {
 
     // TODO: filter all records when there is any nulls on the join key, because
     //  "IS NOT DISTINCT FROM" is not supported yet.
-    val body =
+    val body = if (nullInParameters.isEmpty) {
+      s"""
+         |$prepareCode
+         |$setCollectorCode
+         |$lookupFunctionTerm.eval($parameters);
+      """.stripMargin
+    } else {
       s"""
          |$prepareCode
          |$setCollectorCode
@@ -100,6 +106,7 @@ object LookupJoinCodeGenerator {
          |  $lookupFunctionTerm.eval($parameters);
          | }
       """.stripMargin
+    }
 
     FunctionCodeGenerator.generateFunction(
       ctx,

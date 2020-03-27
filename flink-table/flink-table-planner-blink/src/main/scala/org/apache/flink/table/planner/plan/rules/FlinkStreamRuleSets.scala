@@ -22,7 +22,6 @@ import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.rules.logical._
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.planner.plan.rules.physical.stream._
-
 import org.apache.calcite.rel.core.RelFactories
 import org.apache.calcite.rel.logical.{LogicalIntersect, LogicalMinus, LogicalUnion}
 import org.apache.calcite.rel.rules._
@@ -404,7 +403,9 @@ object FlinkStreamRuleSets {
     StreamExecIntervalJoinRule.INSTANCE,
     StreamExecTemporalJoinRule.INSTANCE,
     StreamExecLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
+    StreamExecLookupJoinRule.LOOKUPABLE_ON_TABLESCAN,
     StreamExecLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
+    StreamExecLookupJoinRule.LOOKUPABLE_ON_CALC_TABLESCAN,
     // CEP
     StreamExecMatchRule.INSTANCE,
     // correlate
