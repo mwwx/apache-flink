@@ -22,14 +22,12 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.TestAddWithOpen
-import org.apache.flink.table.planner.runtime.utils.{InMemoryLookupableTableSource, StreamingTestBase, TestingAppendSink}
+import org.apache.flink.table.planner.runtime.utils.{DimLookupableTableSource, InMemoryLookupableTableSource, StreamingTestBase, TestingAppendSink}
 import org.apache.flink.types.Row
-
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{After, Before, Test}
-
 import java.lang.{Boolean => JBoolean}
 import java.util.{Collection => JCollection}
 
@@ -71,6 +69,7 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     createScanTable("nullable_src", dataWithNull)
     createLookupTable("user_table", userData)
     createLookupTable("nullable_user_table", userDataWithNull)
+    createDimTable("dim_table", userData)
   }
   
   @After
@@ -90,6 +89,31 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
         .field("name", Types.STRING)
         .build()
       InMemoryLookupableTableSource.createTemporaryTable(
+        tEnv, isAsync = false, data, userSchema, tableName)
+    } else {
+      val dataId = TestValuesTableFactory.registerData(data)
+      tEnv.executeSql(
+        s"""
+           |CREATE TABLE $tableName (
+           |  `age` INT,
+           |  `id` BIGINT,
+           |  `name` STRING
+           |) WITH (
+           |  'connector' = 'values',
+           |  'data-id' = '$dataId'
+           |)
+           |""".stripMargin)
+    }
+  }
+
+  private def createDimTable(tableName: String, data: List[Row]): Unit = {
+    if (legacyTableSource) {
+      val userSchema = TableSchema.builder()
+        .field("age", Types.INT)
+        .field("id", Types.LONG)
+        .field("name", Types.STRING)
+        .build()
+      DimLookupableTableSource.createDimTable(
         tEnv, isAsync = false, data, userSchema, tableName)
     } else {
       val dataId = TestValuesTableFactory.registerData(data)
@@ -450,6 +474,153 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     val expected = Seq(
       "9,Hello world!,11,5")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testCalcInnerJoinDim(): Unit = {
+    val sql = "SELECT T.id, T.content, D.age, D.id " +
+      "FROM src AS T JOIN dim_table AS D " +
+      "ON T.id = D.id + 4 AND T.content = concat(D.name, '!') AND D.age = 11"
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "9,Hello world!,11,5")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testCalcLeftJoinDim(): Unit = {
+    val sql = "SELECT T.id, T.content, D.age, D.id " +
+      "FROM src AS T LEFT JOIN dim_table AS D " +
+      "ON T.id = D.id + 4 AND T.content = concat(D.name, '!') AND D.age = 11"
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "1,Julian,null,null",
+      "2,Hello,null,null",
+      "3,Fabian,null,null",
+      "8,Hello world,null,null",
+      "9,Hello world!,11,5")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testInnerJoinDim(): Unit = {
+    val sql = "SELECT T.id, T.content, D.age, D.id " +
+      "FROM src AS T JOIN dim_table AS D " +
+      "ON T.id = D.id"
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "1,Julian,11,1",
+      "2,Hello,22,2",
+      "3,Fabian,33,3")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testLeftJoinDim(): Unit = {
+    val sql = "SELECT T.id, T.content, D.age, D.id " +
+      "FROM src AS T LEFT JOIN dim_table AS D " +
+      "ON T.id = D.id"
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "1,Julian,11,1",
+      "2,Hello,22,2",
+      "3,Fabian,33,3",
+      "8,Hello world,null,null",
+      "9,Hello world!,null,null")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testInnerJoinInWhereDim(): Unit = {
+    val sql = "SELECT T.id, T.content, D.age, D.id " +
+      "FROM src AS T JOIN dim_table AS D " +
+      "ON T.id = D.id + 2 WHERE D.name = 'Julian'"
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "3,Fabian,11,1")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testLeftJoinInWhereDim(): Unit = {
+    val sql = "SELECT T.id, T.content, D.age, D.id " +
+      "FROM src AS T LEFT JOIN dim_table AS D " +
+      "ON T.id = D.id WHERE T.id in (1, 2, 3, 8, 9)"
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "1,Julian,11,1",
+      "2,Hello,22,2",
+      "3,Fabian,33,3",
+      "8,Hello world,null,null",
+      "9,Hello world!,null,null")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testInnerJoinMoreDim(): Unit = {
+    if (legacyTableSource) {
+      val sql = "SELECT T.id, T.content, E.age, D.id " +
+        "FROM src AS T ,dim_table AS D, dim_table AS E " +
+        "WHERE T.id = D.id + 2 " +
+        "   AND T.content = E.name " +
+        "   AND D.id = 1 "
+
+      val sink = new TestingAppendSink
+      tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+      env.execute()
+
+      val expected = Seq(
+        "3,Fabian,33,1")
+      assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    } else {
+      // TODO
+      // CommonLookupJoin.lookupFunction currently we only support top-level lookup keys
+    }
+  }
+
+  @Test
+  def testLeftJoinMoreDim(): Unit = {
+    if (legacyTableSource) {
+      val sql = "SELECT T.id, T.content, E.age, D.id " +
+        "FROM src AS T LEFT JOIN dim_table AS D ON T.id = D.id + 2 " +
+        "   LEFT JOIN dim_table AS E ON T.content = E.name " +
+         "WHERE D.id = 1 "
+
+      val sink = new TestingAppendSink
+      tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+      env.execute()
+
+      val expected = Seq(
+        "3,Fabian,33,1")
+      assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    } else {
+      // TODO
+      // CommonLookupJoin.lookupFunction currently we only support top-level lookup keys
+    }
   }
 
 }
