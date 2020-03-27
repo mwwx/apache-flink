@@ -71,6 +71,18 @@ trait CommonLookupJoinRule {
     // currently temporal table join only support LookupTableSource
     isLookupTableSource(tableScan)
   }
+  protected def matches(
+      join: FlinkLogicalJoin,
+      tableScan: TableScan): Boolean = {
+    // TODO: shouldn't match temporal UDTF join
+    if (!isTableSourceScan(tableScan)) {
+      throw new TableException(
+        "Temporal table join only support join on a LookupTableSource, " +
+          "not on a DataStream or an intermediate query")
+    }
+    // currently temporal table join only support LookupTableSource
+    JoinUtil.isLookupableTableSource(tableScan)
+  }
 
   protected def isTableSourceScan(relNode: RelNode): Boolean = {
     relNode match {
@@ -147,6 +159,32 @@ abstract class BaseSnapshotOnTableScanRule(description: String)
 
 }
 
+abstract class BaseLookupableOnTableScanRule(description: String)
+  extends RelOptRule(
+    operand(classOf[FlinkLogicalJoin],
+      operand(classOf[FlinkLogicalRel], any()),
+      operand(classOf[TableScan], any())),
+    description)
+  with CommonLookupJoinRule {
+
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val join = call.rel[FlinkLogicalJoin](0)
+    val tableScan = call.rel[TableScan](2)
+    matches(join, tableScan)
+  }
+
+  override def onMatch(call: RelOptRuleCall): Unit = {
+    val join = call.rel[FlinkLogicalJoin](0)
+    val input = call.rel[FlinkLogicalRel](1)
+    val tableScan = call.rel[RelNode](2)
+
+    validateJoin(join)
+    val temporalJoin = transform(join, input, tableScan.getTable, None)
+    call.transformTo(temporalJoin)
+  }
+
+}
+
 abstract class BaseSnapshotOnCalcTableScanRule(description: String)
   extends RelOptRule(
     operand(classOf[FlinkLogicalJoin],
@@ -169,6 +207,35 @@ abstract class BaseSnapshotOnCalcTableScanRule(description: String)
     val input = call.rel[FlinkLogicalRel](1)
     val calc = call.rel[FlinkLogicalCalc](3)
     val tableScan = call.rel[RelNode](4)
+
+    validateJoin(join)
+    val temporalJoin = transform(
+      join, input, tableScan.getTable, Some(calc.getProgram))
+    call.transformTo(temporalJoin)
+  }
+
+}
+
+abstract class BaseLookupableOnCalcTableScanRule(description: String)
+  extends RelOptRule(
+    operand(classOf[FlinkLogicalJoin],
+      operand(classOf[FlinkLogicalRel], any()),
+      operand(classOf[FlinkLogicalCalc],
+        operand(classOf[TableScan], any()))),
+    description)
+  with CommonLookupJoinRule {
+
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val join = call.rel[FlinkLogicalJoin](0)
+    val tableScan = call.rel[TableScan](3)
+    matches(join, tableScan)
+  }
+
+  override def onMatch(call: RelOptRuleCall): Unit = {
+    val join = call.rel[FlinkLogicalJoin](0)
+    val input = call.rel[FlinkLogicalRel](1)
+    val calc = call.rel[FlinkLogicalCalc](2)
+    val tableScan = call.rel[RelNode](3)
 
     validateJoin(join)
     val temporalJoin = transform(

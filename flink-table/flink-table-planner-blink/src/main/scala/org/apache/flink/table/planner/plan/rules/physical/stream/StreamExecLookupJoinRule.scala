@@ -21,8 +21,7 @@ import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecLookupJoin
-import org.apache.flink.table.planner.plan.rules.physical.common.{BaseSnapshotOnCalcTableScanRule, BaseSnapshotOnTableScanRule}
-
+import org.apache.flink.table.planner.plan.rules.physical.common.{BaseLookupableOnCalcTableScanRule, BaseLookupableOnTableScanRule, BaseSnapshotOnCalcTableScanRule, BaseSnapshotOnTableScanRule}
 import org.apache.calcite.plan.{RelOptRule, RelOptTable}
 import org.apache.calcite.rex.RexProgram
 
@@ -37,7 +36,10 @@ import org.apache.calcite.rex.RexProgram
   */
 object StreamExecLookupJoinRule {
   val SNAPSHOT_ON_TABLESCAN: RelOptRule = new SnapshotOnTableScanRule
+  val LOOKUPABLE_ON_TABLESCAN: RelOptRule = new LookupableOnTableScanRule
   val SNAPSHOT_ON_CALC_TABLESCAN: RelOptRule = new SnapshotOnCalcTableScanRule
+  val LOOKUPABLE_ON_CALC_TABLESCAN: RelOptRule = new LookupableOnCalcTableScanRule
+
 
   class SnapshotOnTableScanRule
     extends BaseSnapshotOnTableScanRule("StreamExecSnapshotOnTableScanRule") {
@@ -51,8 +53,32 @@ object StreamExecLookupJoinRule {
     }
   }
 
+  class LookupableOnTableScanRule
+    extends BaseLookupableOnTableScanRule("StreamExecLookupableOnTableScanRule") {
+
+    override protected def transform(
+        join: FlinkLogicalJoin,
+        input: FlinkLogicalRel,
+        temporalTable: RelOptTable,
+        calcProgram: Option[RexProgram]): CommonLookupJoin = {
+      doTransform(join, input, temporalTable, calcProgram)
+    }
+  }
+
   class SnapshotOnCalcTableScanRule
     extends BaseSnapshotOnCalcTableScanRule("StreamExecSnapshotOnCalcTableScanRule") {
+
+    override protected def transform(
+        join: FlinkLogicalJoin,
+        input: FlinkLogicalRel,
+        temporalTable: RelOptTable,
+        calcProgram: Option[RexProgram]): CommonLookupJoin = {
+      doTransform(join, input, temporalTable, calcProgram)
+    }
+  }
+
+  class LookupableOnCalcTableScanRule
+    extends BaseLookupableOnCalcTableScanRule("StreamExecLookupableOnCalcTableScanRule") {
 
     override protected def transform(
         join: FlinkLogicalJoin,

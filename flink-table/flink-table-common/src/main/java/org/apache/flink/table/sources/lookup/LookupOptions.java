@@ -210,8 +210,8 @@ public class LookupOptions implements Serializable {
 		if (cacheStrategy != null) {
 			properties.put(LookupValidator.CONNECTOR_LOOKUP_CACHE_STRATEGY, cacheStrategy.name());
 		}
-		if (cacheStrategy != null) {
-			properties.put(LookupValidator.CONNECTOR_LOOKUP_CACHE_STRATEGY, dataType.name());
+		if (dataType != null) {
+			properties.put(LookupValidator.CONNECTOR_DATA_TYPE, dataType.name());
 		}
 		if (cacheSize != null) {
 			properties.put(LookupValidator.CONNECTOR_LOOKUP_CACHE_MAX_ROWS, cacheSize.toString());

@@ -22,15 +22,19 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition
 import org.apache.flink.table.types.logical.LogicalType
-
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Join, JoinInfo}
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.util.ImmutableIntList
 import org.apache.calcite.util.mapping.IntPair
-
 import java.util
+
+import org.apache.flink.table.connector.source.LookupTableSource
+import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalTableSourceScan
+import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalLegacyTableSourceScan, FlinkLogicalTableSourceScan}
+import org.apache.flink.table.planner.plan.nodes.physical.PhysicalLegacyTableSourceScan
+import org.apache.flink.table.sources.{LookupableTableSource, TableDataType}
 
 import scala.collection.mutable
 
@@ -137,5 +141,34 @@ object JoinUtil {
       ctx,
       "ConditionFunction",
       body)
+  }
+
+  def isLookupableTableSource(relNode: RelNode): Boolean = {
+    relNode match {
+      case scan: FlinkLogicalLegacyTableSourceScan =>
+        scan.tableSource match {
+          case source: LookupableTableSource[_] =>
+            val tableSource = source.asInstanceOf[LookupableTableSource[_]]
+            tableSource.getLookupOptions != null &&
+              TableDataType.STATIC == tableSource.getLookupOptions.getDataType
+          case _ =>
+            false
+        }
+      case scan: PhysicalLegacyTableSourceScan =>
+        scan.tableSource match {
+          case source: LookupableTableSource[_] =>
+            val tableSource = source.asInstanceOf[LookupableTableSource[_]]
+            tableSource.getLookupOptions != null &&
+              TableDataType.STATIC == tableSource.getLookupOptions.getDataType
+          case _ =>
+            false
+        }
+      case scan: FlinkLogicalTableSourceScan =>
+        scan.tableSource.isInstanceOf[LookupTableSource]
+      case scan: CommonPhysicalTableSourceScan =>
+        scan.tableSource.isInstanceOf[LookupTableSource]
+      // TODO: find TableSource in FlinkLogicalIntermediateTableScan
+      case _ => false
+    }
   }
 }
