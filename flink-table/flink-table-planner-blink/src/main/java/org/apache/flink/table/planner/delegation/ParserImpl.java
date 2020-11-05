@@ -94,4 +94,8 @@ public class ParserImpl implements Parser {
 		LogicalType logicalType = FlinkTypeFactory.toLogicalType(rexNode.getType());
 		return new RexNodeExpression(rexNode, TypeConversions.fromLogicalToDataType(logicalType));
 	}
+
+	public FlinkPlannerImpl getFlinkPlannerImpl() {
+		return validatorSupplier.get();
+	}
 }
