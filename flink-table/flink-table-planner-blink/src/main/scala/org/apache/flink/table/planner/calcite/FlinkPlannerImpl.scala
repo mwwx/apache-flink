@@ -209,6 +209,8 @@ class FlinkPlannerImpl(
 
     override def getTableHints: util.List[RelHint] = ImmutableList.of()
   }
+
+  def getCluster: RelOptCluster = cluster
 }
 
 object FlinkPlannerImpl {
