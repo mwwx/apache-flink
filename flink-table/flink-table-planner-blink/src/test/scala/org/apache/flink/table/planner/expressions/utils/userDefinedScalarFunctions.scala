@@ -494,15 +494,15 @@ class FuncWithOpen extends ScalarFunction {
 @SerialVersionUID(1L)
 class Func31 extends ScalarFunction {
   def eval(typeInfo: String, json: String): Row = {
-    val splits: Array[String] = json.split(",");
-    Row.of(splits)
+    val splits: Array[String] = json.split(",")
+    Row.of(splits(0), splits(1).toInt.asInstanceOf[Integer])
   }
 
   override def isDynamicResultType: Boolean = true
 
   override def getResultType(parameters: Array[AnyRef]): TypeInformation[_] = {
     val parameter: String = parameters(0).toString
-    val infos = parameter.split(";");
+    val infos = parameter.split(";")
 
     val names: Array[String] = new Array[String](infos.length)
     val types: Array[TypeInformation[_]] = new Array[TypeInformation[_]](infos.length)
@@ -529,15 +529,15 @@ class Func31 extends ScalarFunction {
 @SerialVersionUID(1L)
 class Func32 extends ScalarFunction {
   def eval(typeInfo: String, json: String): Row = {
-    val splits: Array[String] = json.split(";");
-    Row.of(splits)
+    val splits: Array[String] = json.split(",")
+    Row.of(splits(0), splits(1).toInt.asInstanceOf[Integer])
   }
 
   override def isDynamicResultType: Boolean = true
 
   override def getResultType(parameters: Array[AnyRef]): TypeInformation[_] = {
     val parameter: String = parameters(0).toString
-    val infos = parameter.split(";");
+    val infos = parameter.split(";")
 
     val types: Array[TypeInformation[_]] = new Array[TypeInformation[_]](infos.length)
 
@@ -564,8 +564,8 @@ class Func33 extends ScalarFunction {
   def eval(typeInfo: String, json: String, type1: Int,
     type2: Long, type3: Double, type4: Float,
     type6: Byte, type7: Short): Row = {
-    val splits: Array[String] = json.split(";");
-    Row.of(splits)
+    val splits: Array[String] = json.split(",")
+    Row.of(splits(0), splits(1).toInt.asInstanceOf[Integer])
   }
 
   override def isDynamicResultType: Boolean = true

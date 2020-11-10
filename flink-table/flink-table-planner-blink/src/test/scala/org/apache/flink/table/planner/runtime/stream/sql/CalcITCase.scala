@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
-import org.apache.flink.table.planner.expressions.utils.{Func31, Func32}
+import org.apache.flink.table.planner.expressions.utils.{Func31, Func32, Func33}
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestData, TestSinkUtil, TestingAppendSink, TestingAppendTableSink}
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.types.Row
@@ -378,7 +378,7 @@ class CalcITCase extends StreamingTestBase {
     env.execute()
 
     val expected = List(
-      "1,[lily, 23],[lucy,15]")
+      "1,lily,23,lucy,15")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -402,7 +402,7 @@ class CalcITCase extends StreamingTestBase {
     env.execute()
 
     val expected = List(
-      "1,[lily, 23],[lucy,15]")
+      "1,lily,23,lucy,15")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 }

@@ -385,7 +385,7 @@ class GraduatedStudent(name: String) extends Student(name)
 
 class Func26 extends ScalarFunction {
   def eval(typeInfo: String, json: String): Row = {
-    val splits: Array[String] = json.split(",");
+    val splits: Array[String] = json.split(",")
     Row.of(splits)
   }
 
@@ -393,7 +393,7 @@ class Func26 extends ScalarFunction {
 
   override def getResultType(parameters: Array[AnyRef]): TypeInformation[_] = {
     val parameter: String = parameters(0).asInstanceOf[String]
-    val infos = parameter.split(";");
+    val infos = parameter.split(";")
 
     val names: Array[String] = new Array[String](infos.length)
     val types: Array[TypeInformation[_]] = new Array[TypeInformation[_]](infos.length)
@@ -421,7 +421,7 @@ class Func27 extends ScalarFunction {
   def eval(typeInfo: String, json: String, type1: Int,
            type2: Long, type3: Double, type4: Float,
            type6: Byte, type7: Short): Row = {
-    val splits: Array[String] = json.split(";");
+    val splits: Array[String] = json.split(";")
     Row.of(splits)
   }
 
@@ -435,7 +435,7 @@ class Func27 extends ScalarFunction {
     parameters(5).asInstanceOf[Float]
     parameters(6).asInstanceOf[Byte]
     parameters(7).asInstanceOf[Short]
-    val infos = parameter.split(";");
+    val infos = parameter.split(";")
 
     val types: Array[TypeInformation[_]] = new Array[TypeInformation[_]](infos.length)
 
