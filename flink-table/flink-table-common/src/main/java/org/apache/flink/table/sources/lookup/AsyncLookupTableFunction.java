@@ -1,6 +1,7 @@
 package org.apache.flink.table.sources.lookup;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.sources.lookup.cache.Cache;
@@ -11,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -43,7 +45,7 @@ public class AsyncLookupTableFunction extends AsyncTableFunction<Row> {
 		this.cache.open(lookupOptions, fetcher, context);
 	}
 
-	public void eval(CompletableFuture<Row> result, Object... keys) {
+	public void eval(CompletableFuture<Collection<Row>> result, Object... keys) {
 		CompletableFuture.supplyAsync(() -> {
 			for (int retry = 1; retry <= maxRetryTimes; retry++) {
 				try {
@@ -62,14 +64,7 @@ public class AsyncLookupTableFunction extends AsyncTableFunction<Row> {
 				}
 			}
 			throw new RuntimeException("fetch data error with run out of retries.");
-		}).whenComplete((value, throwable) -> {
-			if (throwable != null) {
-				result.completeExceptionally(throwable);
-			}
-			for (Row row : value) {
-				result.complete(row);
-			}
-		});
+		}, Executors.directExecutor()).thenAccept(result::complete);
 	}
 
 	@Override
