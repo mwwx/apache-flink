@@ -7,7 +7,7 @@
 	<parent>
 		<artifactId>flink-parent</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.11.2</version>
+		<version>1.11.2_3.0</version>
 		<relativePath>..</relativePath>
 	</parent>
 
