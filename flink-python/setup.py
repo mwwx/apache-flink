@@ -277,7 +277,7 @@ run sdist.
         PACKAGE_DATA['pyflink.licenses'] = ['*']
 
     setup(
-        name='apache-flink',
+        name='datapps-pyflink',
         version=VERSION,
         packages=PACKAGES,
         include_package_data=True,
